@@ -21,7 +21,7 @@ To perform the training, a GPU available at the KISTI supercomputer is used. Her
 +-----------------------------------------------------------------------------+<br />
 | NVIDIA-SMI 418.39       Driver Version: 418.39       CUDA Version: 10.1     |<br />
 |-------------------------------+----------------------+----------------------+<br />
-| GPU  Name        Persistence-M| Bus-Id        Disp.A | Volatile Uncorr. ECC |<br />
+| GPU&nbsp&nbspName&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbspPersistence-M| Bus-Id        Disp.A | Volatile Uncorr. ECC |<br />
 | Fan  Temp  Perf  Pwr:Usage/Cap|         Memory-Usage | GPU-Util  Compute M. |<br />
 |===============================+======================+======================|<br />
 |   0  Tesla P100-PCIE...  Off  | 00000000:03:00.0 Off |                    0 |<br />
