@@ -14,6 +14,13 @@ https://github.com/mcremone/NanoMET/blob/master/python/addPFCands_cff.py#L16-L17
 
 The name of the additional branch in NanoAOD is `JetPFCands`.
 
+The files that have been used for input generation are:
+
+```/store/mc/RunIISummer19UL18MiniAOD/TTTo2L2Nu_TuneCP5_13TeV-powheg-pythia8/MINIAODSIM/106X_upgrade2018_realistic_v11_L1v1-v2/270000/FCD07DC9-56B4-0A4D-9D0C-4B659C058823.root```
+```/store/mc/RunIISummer19UL18MiniAOD/DYToMuMu_pomflux_Pt-30_TuneCP5_13TeV-pythia8/MINIAODSIM/106X_upgrade2018_realistic_v11_L1v1-v2/280000/3063BD33-427C-274C-8ED6-0586930088F8.root```
+
+55k events have been produced for both.
+
 ## Hardware
 
 To perform the training, a GPU available at the KISTI supercomputer is used. Here are the spec:
