@@ -39,6 +39,7 @@ array([92.], dtype=float32)
 </pre>    
 
 The first array, `arr_0`, contains the 4-vectors for each PF candidate in the event, that correspond to the sub-arrays. The components of each sub-array correspond to the PF candidate pT, eta, phi, and mass. 
+
 The second array, `arr_1`, contains the genMET value for the event.
 
 ## Hardware
