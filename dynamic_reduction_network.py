@@ -328,19 +328,25 @@ warnings.simplefilter('ignore')
 
 batch_size = 256
 
-DO_FULL_MNIST = True
-if DO_FULL_MNIST:
-    from mnistdataset import MNISTDataset
-    train_dataset = MNISTDataset('mnistdata/', train=True)
-    test_dataset = MNISTDataset('mnistdata/', train=False)
-else:
-    path = osp.join('./', '..', 'data', 'MNIST')
-    transform = T.Cartesian(cat=False)
-    train_dataset = MNISTSuperpixels(path, True, transform=transform)
-    test_dataset = MNISTSuperpixels(path, False, transform=transform)
+from met_dataset import METDataset
+import os
+dataset = METDataset(os.environ['PWD']+'/data/')
 
-train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+from torch.utils.data.sampler import SubsetRandomSampler
+
+dataset_size = len(dataset)
+indices = list(range(dataset_size))
+validation_split = .1
+split = int(np.floor(validation_split * dataset_size))
+random_seed= 42
+np.random.seed(random_seed)
+np.random.shuffle(indices)
+train_indices, val_indices = indices[split:], indices[:split]
+
+train_sampler = SubsetRandomSampler(train_indices)
+train_loader = DataLoader(dataset, batch_size=batch_size, sampler=train_sampler)
+valid_sampler = SubsetRandomSampler(val_indices)
+test_loader = DataLoader(dataset, batch_size=batch_size, sampler=valid_sampler)
 
 epoch_size = len(train_dataset)
 print(epoch_size, batch_size)

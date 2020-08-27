@@ -1,6 +1,6 @@
 """
     PyTorch specification for the hit graph dataset.
-    """
+"""
 
 # System imports
 import os
@@ -15,20 +15,11 @@ from torch.utils.data import random_split
 from torch_geometric.utils import is_undirected, to_undirected
 from torch_geometric.data import (Data, Dataset)
 
-# Local imports
-from datasets.graph import load_graph
-
-class HitGraphDataset(Dataset):
+class METDataset(Dataset):
     """PyTorch geometric dataset from processed hit information"""
     
-    def __init__(self, root,
-                 directed = True,
-                 categorical = False,
-                 transform = None,
-                 pre_transform = None):
-        self._directed = directed
-        self._categorical = categorical
-        super(HitGraphDataset, self).__init__(root, transform, pre_transform)
+    def __init__(self, root):
+        super(METDataset, self).__init__(root)
     
     def download(self):
         pass #download from xrootd or something later
@@ -57,29 +48,13 @@ class HitGraphDataset(Dataset):
         #convert the npz into pytorch tensors and save them
         path = self.processed_dir
         for idx,raw_path in enumerate(tqdm(self.raw_paths)):
-
-            g = load_graph(raw_path)
-            
-            Ro = g.Ro[0].T.astype(np.int64)
-            Ri = g.Ri[0].T.astype(np.int64)
-            
-            i_out = Ro[Ro[:,1].argsort(kind='stable')][:,0]
-            i_in  = Ri[Ri[:,1].argsort(kind='stable')][:,0]
-                        
-            x = g.X.astype(np.float32)
-            edge_index = np.stack((i_out,i_in))
-            y = g.y.astype(np.int64)
-            if not self._categorical:
-                y = g.y.astype(np.float32)
-            #print('y type',y.dtype)
+            print(idx,raw_path)
+            npzfile = np.load(raw_path)
+            x = npzfile['arr_0'].astype(np.float32)
+            edge_index = torch.empty((2,0), dtype=torch.long)
+            y = npzfile['arr_1'].astype(np.float32)
             outdata = Data(x=torch.from_numpy(x),
-                           edge_index=torch.from_numpy(edge_index),
+                           edge_index=edge_index,
                            y=torch.from_numpy(y))
-            
-            if not self._directed and not outdata.is_undirected():
-                rows,cols = outdata.edge_index
-                temp = torch.stack((cols,rows))
-                outdata.edge_index = torch.cat([outdata.edge_index,temp],dim=-1)
-                outdata.y = torch.cat([outdata.y,outdata.y])
         
             torch.save(outdata, osp.join(self.processed_dir, 'data_{}.pt'.format(idx)))
