@@ -22,7 +22,7 @@ The files that have been used for input generation are:
 55k events have been produced for both. They were converted into .npz files using the `generate_npz.py` module and the output is stored in the `data` folder. Each .npz file correspond to one event and contains two arrays:
 
 <pre>
->>> npzfile = np.load('/cms/scratch/matteoc/npz_files/tt_dilep_event54997.npz')
+>>> npzfile = np.load(filename)
 >>> npzfile.files
 ['arr_0', 'arr_1']
 >>> npzfile['arr_0']
@@ -46,6 +46,8 @@ The second array, `arr_1`, contains the genMET value for the event.
 
 To perform the training, a GPU available at the KISTI supercomputer is used. Here are the spec:
 <pre>
+ssh -Y cms-gpu01
+[matteoc@cms-gpu01 ~]$ nvidia-smi 
 +-----------------------------------------------------------------------------+
 | NVIDIA-SMI 418.39       Driver Version: 418.39       CUDA Version: 10.1     |
 |-------------------------------+----------------------+----------------------+
