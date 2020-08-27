@@ -2,6 +2,16 @@
 
 Attempting to regress MET from PF candidate using a Dynamic Reduction Network (https://arxiv.org/abs/2003.08013). 
 
+## Installation
+
+<pre>
+pip install torch-scatter==latest+${CUDA} -f https://pytorch-geometric.com/whl/torch-1.6.0.html
+pip install torch-sparse==latest+${CUDA} -f https://pytorch-geometric.com/whl/torch-1.6.0.html
+pip install torch-cluster==latest+${CUDA} -f https://pytorch-geometric.com/whl/torch-1.6.0.html
+pip install torch-spline-conv==latest+${CUDA} -f https://pytorch-geometric.com/whl/torch-1.6.0.html
+pip install torch-geometric
+</pre>
+
 ## Input data
 
 Data have been obtained from privately produced NanoAOD, generated with the following package:
