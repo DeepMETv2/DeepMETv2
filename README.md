@@ -2,7 +2,7 @@
 
 Attempting to regress MET from PF candidate using a Dynamic Reduction Network (https://arxiv.org/abs/2003.08013). 
 
-## Installation
+## Prerequisites 
 
 <pre>
 conda install cudatoolkit=10.2
