@@ -6,7 +6,7 @@ Attempting to regress MET from PF candidate using a Dynamic Reduction Network (h
 
 <pre>
 conda install cudatoolkit=10.2
-conda install -c pytorch pytorch=1.5.0
+conda install -c pytorch pytorch=1.6.0
 export CUDA="cu102"
 pip install torch-scatter==latest+${CUDA} -f https://pytorch-geometric.com/whl/torch-1.6.0.html
 pip install torch-sparse==latest+${CUDA} -f https://pytorch-geometric.com/whl/torch-1.6.0.html
