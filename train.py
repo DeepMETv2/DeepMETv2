@@ -40,21 +40,22 @@ class Net(nn.Module):
                                            k = 8,
                                            output_dim=2, aggr='max',
                                            norm=torch.tensor([1./910.5, 1./6., 1./3.1416016, 1./1.0693359]))
-        
     def forward(self, data):
         logits = self.drn(data)
-        return F.log_softmax(logits, dim=1)
-
+        #return F.log_softmax(logits, dim=1)
+        return logits
 
 model = Net().to('cuda')
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=5e-3)
 
-def train(epoch):
+#def train(epoch):
+def train():
     model.train()
     for data in tqdm(train_loader):
         data = data.to('cuda')        
         optimizer.zero_grad()
-        result = model(data, data.batch)
+        result = model(data)
+        print(result)
         mse = F.mse_loss(result, data.y, reduction='mean')
         mse.backward()
         optimizer.step()
@@ -68,3 +69,12 @@ def test():
         pred = model(data).max(1)[1]
         correct += pred.eq(data.y).sum().item()
     return correct / len(val_indices)
+
+'''
+for epoch in range(1, 65):
+    train(epoch)
+    test_acc = test()
+    print('Epoch: {:02d}, Test: {:.4f}'.format(epoch, test_acc))
+'''
+
+train()
