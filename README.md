@@ -62,14 +62,15 @@ To perform the training, a GPU available at the KISTI supercomputer is used. Her
 ssh -Y cms-gpu01
 [matteoc@cms-gpu01 ~]$ nvidia-smi 
 +-----------------------------------------------------------------------------+
-| NVIDIA-SMI 418.39       Driver Version: 418.39       CUDA Version: 10.1     |
+| NVIDIA-SMI 440.33.01    Driver Version: 440.33.01    CUDA Version: 10.2     |
 |-------------------------------+----------------------+----------------------+
 | GPU  Name        Persistence-M| Bus-Id        Disp.A | Volatile Uncorr. ECC |
 | Fan  Temp  Perf  Pwr:Usage/Cap|         Memory-Usage | GPU-Util  Compute M. |
 |===============================+======================+======================|
 |   0  Tesla P100-PCIE...  Off  | 00000000:03:00.0 Off |                    0 |
-| N/A   29C    P0    25W / 250W |      0MiB / 16280MiB |      0%      Default |
+| N/A   29C    P0    28W / 250W |      0MiB / 16280MiB |      0%      Default |
 +-------------------------------+----------------------+----------------------+
+
 </pre>                                                                 
 
 
