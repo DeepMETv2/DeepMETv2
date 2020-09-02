@@ -7,74 +7,50 @@ import torch.nn.functional as F
 from torch_geometric.datasets import MNISTSuperpixels
 import torch_geometric.transforms as T
 from torch_geometric.data import DataLoader
-from tqdm import tqdm_notebook as tqdm
-
-from models.dynamic_reduction_network import DynamicReductionNetwork
-from met_dataset import METDataset
-from torch.utils.data.sampler import SubsetRandomSampler
-
+from tqdm import tqdm
+import utils
+import model.net as net
+import model.data_loader as data_loader
 import warnings
 warnings.simplefilter('ignore')
 
-transform = T.Cartesian(cat=False)
-dataset = METDataset(os.environ['PWD']+'/data/')
-dataset_size = len(dataset)
-indices = list(range(dataset_size))
-validation_split = .1
-split = int(np.floor(validation_split * dataset_size))
-random_seed= 42
-np.random.seed(random_seed)
-np.random.shuffle(indices)
-train_indices, val_indices = indices[split:], indices[:split]
-train_sampler = SubsetRandomSampler(train_indices)
-valid_sampler = SubsetRandomSampler(val_indices)
-batch_size=60
-train_loader = DataLoader(dataset, batch_size=batch_size, sampler=train_sampler)
-test_loader = DataLoader(dataset, batch_size=batch_size, sampler=valid_sampler)
-print('features ->', dataset.num_features)
 
-class Net(nn.Module):
-    def __init__(self):
-        super(Net, self).__init__()
-        self.drn = DynamicReductionNetwork(input_dim=4, hidden_dim=64,
-                                           k = 8,
-                                           output_dim=2, aggr='max',
-                                           norm=torch.tensor([1./910.5, 1./6., 1./3.1416016, 1./1.0693359]))
-    def forward(self, data):
-        logits = self.drn(data)
-        #return F.log_softmax(logits, dim=1)
-        return logits
-
-model = Net().to('cuda')
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=5e-3)
-
-#def train(epoch):
-def train():
+def train(model, optimizer, loss_fn, dataloader, epoch):
     model.train()
-    for data in tqdm(train_loader):
-        data = data.to('cuda')        
-        optimizer.zero_grad()
-        result = model(data)
-        print(result)
-        mse = F.mse_loss(result, data.y, reduction='mean')
-        mse.backward()
-        optimizer.step()
+    loss_avg_arr = []
+    loss_avg = utils.RunningAverage()
+    with tqdm(total=len(dataloader)) as t:
+        for data in dataloader:
+            data = data.to('cuda')
+            optimizer.zero_grad()
+            result = model(data)
+            loss = loss_fn(result, data.y)
+            loss.backward()
+            optimizer.step()
+            # update the average loss
+            loss_avg_arr.append(loss.item())
+            loss_avg.update(loss.item())
+            t.set_postfix(loss='{:05.3f}'.format(loss_avg()))
+            t.update()
+    print('Training epoch: {:02d}, MSE: {:.4f}'.format(epoch, np.mean(loss_avg_arr)))
 
+if __name__ == '__main__':
+    dataloaders = data_loader.fetch_dataloader(data_dir=osp.join(os.environ['PWD'],'data'), 
+                                               batch_size=60, 
+                                               validation_split=.1)
+    train_dl = dataloaders['train']
+    
+    model = net.Net().to('cuda')
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=5e-3)
+    
+    loss_fn = net.loss_fn
+    model_dir = osp.join(os.environ['PWD'],'ckpts')
 
-def test():
-    model.eval()
-    correct = 0
-    for data in test_loader:
-        data = data.to('cuda:0')
-        pred = model(data).max(1)[1]
-        correct += pred.eq(data.y).sum().item()
-    return correct / len(val_indices)
-
-'''
-for epoch in range(1, 65):
-    train(epoch)
-    test_acc = test()
-    print('Epoch: {:02d}, Test: {:.4f}'.format(epoch, test_acc))
-'''
-
-train()
+    for epoch in range(1,201):
+        train(model, optimizer, loss_fn, train_dl, epoch)
+        is_best=False
+        utils.save_checkpoint({'epoch': epoch,
+                               'state_dict': model.state_dict(),
+                               'optim_dict': optimizer.state_dict()},
+                              is_best=is_best,
+                              checkpoint=model_dir)
