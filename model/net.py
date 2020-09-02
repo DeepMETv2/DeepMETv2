@@ -18,4 +18,8 @@ class Net(nn.Module):
         return logits
 
 def loss_fn(prediction, truth):
-    return F.mse_loss(prediction, truth, reduction='mean')
+    #loss = F.mse_loss(prediction, truth, reduction='none')
+    #return loss.mean(dim=0).sum()
+    loss = 0.5 * ( (prediction[:,0]-truth[:,0])**2 + (prediction[:,1]-truth[:,1])**2 )
+    print('loss',loss.mean(dim=0))
+    return loss.mean(dim=0)

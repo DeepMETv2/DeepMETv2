@@ -51,11 +51,12 @@ class METDataset(Dataset):
         #convert the npz into pytorch tensors and save them
         path = self.processed_dir
         for idx,raw_path in enumerate(tqdm(self.raw_paths)):
-            print(idx,raw_path)
             npzfile = np.load(raw_path)
             x = npzfile['arr_0'].astype(np.float32)
             edge_index = torch.empty((2,0), dtype=torch.long)
-            y = npzfile['arr_1'].astype(np.float32)[None]
+            metx=npzfile['arr_1'][0]*np.cos(npzfile['arr_1'][1])
+            mety=npzfile['arr_1'][0]*np.sin(npzfile['arr_1'][1])
+            y=np.array([metx,mety]).astype(np.float32)[None]
             outdata = Data(x=torch.from_numpy(x),
                            edge_index=edge_index,
                            y=torch.from_numpy(y))
