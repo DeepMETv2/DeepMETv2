@@ -1,3 +1,4 @@
+import json
 import os
 import shutil
 
@@ -25,6 +26,17 @@ class RunningAverage():
     def __call__(self):
         return self.total/float(self.steps)
 
+def save_dict_to_json(d, json_path):
+    """Saves dict of floats in json file
+    Args:
+        d: (dict) of float-castable values (np.float, int, float, etc.)
+        json_path: (string) path to json file
+    """
+    with open(json_path, 'w') as f:
+        # We need to convert the values to float for json (it doesn't accept np.array, np.float, )
+        d = {k: float(v) for k, v in d.items()}
+        json.dump(d, f, indent=4)
+
 def save_checkpoint(state, is_best, checkpoint):
     """Saves model and training parameters at checkpoint + 'last.pth.tar'. If is_best==True, also saves
     checkpoint + 'best.pth.tar'
@@ -33,7 +45,8 @@ def save_checkpoint(state, is_best, checkpoint):
         is_best: (bool) True if it is the best model seen till now
         checkpoint: (string) folder where parameters are to be saved
     """
-    ckpt = 'ckpt_{0}.pth.tar'.format(state['epoch'])
+    #ckpt = 'ckpt_{0}.pth.tar'.format(state['epoch'])
+    #filepath = os.path.join(checkpoint, ckpt)
     filepath = os.path.join(checkpoint, 'last.pth.tar')
     if not os.path.exists(checkpoint):
         print("Checkpoint Directory does not exist! Making directory {}".format(checkpoint))

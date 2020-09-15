@@ -5,12 +5,16 @@ from optparse import OptionParser
 import concurrent.futures
 
 def future_savez(i):
+        gen = events.GenPart
+        gen['isZ'] = (abs(gen.pdgId)==23)&gen.hasFlags(['fromHardProcess', 'isLastCopy'])
+        genZs = gen[gen.isZ]
+        genZ  = genZs[genZs.pt.argmax()]
+        genmet_list = [events.GenMET.pt[i],events.GenMET.phi[i],genZ.pt[i].sum(),genZ.phi[i].sum()]
         event_list = []
-        genmet_list = [events.GenMET.pt[i],events.GenMET.phi[i]]
         n_particles=len(events.JetPFCands.pt[i])
-        print('Event:',i,'number of PF candidates:',n_particles)
+        #print('Event:',i,'number of PF candidates:',n_particles)
         for j in range(n_particles):
-                particle_list=[events.JetPFCands.pt[i][j],events.JetPFCands.eta[i][j],events.JetPFCands.phi[i][j],events.JetPFCands.mass[i][j]]
+                particle_list=[events.JetPFCands.pt[i][j],events.JetPFCands.eta[i][j],events.JetPFCands.phi[i][j],events.JetPFCands.mass[i][j],events.JetPFCands.puppiWeight[i][j]]
                 event_list.append(particle_list)
         npz_file=os.environ['PWD']+'/data/raw/'+dataset+'_event'+str(i)
         print('Saving file',npz_file+'.npz')

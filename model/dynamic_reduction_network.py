@@ -42,6 +42,7 @@ class DynamicReductionNetwork(nn.Module):
         super(DynamicReductionNetwork, self).__init__()
 
         self.datanorm = nn.Parameter(norm)
+        #self.datanorm.requires_grad=False
         
         self.k = k
         start_width = 2 * hidden_dim
@@ -58,12 +59,14 @@ class DynamicReductionNetwork(nn.Module):
         convnn1 = nn.Sequential(nn.Linear(start_width, middle_width),
                                 nn.ELU(),
                                 nn.Linear(middle_width, hidden_dim),                                             
-                                nn.ELU()
+                                nn.ELU(),
+                                nn.BatchNorm1d(num_features=hidden_dim)
                                 )
         convnn2 = nn.Sequential(nn.Linear(start_width, middle_width),
                                 nn.ELU(),
                                 nn.Linear(middle_width, hidden_dim),                                             
-                                nn.ELU()
+                                nn.ELU(),
+                                nn.BatchNorm1d(num_features=hidden_dim)
                                 )                
                 
         self.edgeconv1 = EdgeConv(nn=convnn1, aggr=aggr)
