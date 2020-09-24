@@ -1,4 +1,7 @@
+import lz4.frame
+import cloudpickle
 import json
+import os.path as osp
 import os
 import shutil
 
@@ -26,6 +29,22 @@ class RunningAverage():
     def __call__(self):
         return self.total/float(self.steps)
 
+def load(filename):
+    '''Load a coffea file from disk
+    '''
+    with lz4.frame.open(filename) as fin:
+        output = cloudpickle.load(fin)
+    return output
+
+
+def save(output, filename):
+    '''Save a coffea object or collection thereof to disk
+    This function can accept any picklable object.  Suggested suffix: ``.coffea``
+    '''
+    with lz4.frame.open(filename, 'wb') as fout:
+        thepickle = cloudpickle.dumps(output)
+        fout.write(thepickle)
+
 def save_dict_to_json(d, json_path):
     """Saves dict of floats in json file
     Args:
@@ -46,8 +65,8 @@ def save_checkpoint(state, is_best, checkpoint):
         checkpoint: (string) folder where parameters are to be saved
     """
     #ckpt = 'ckpt_{0}.pth.tar'.format(state['epoch'])
-    #filepath = os.path.join(checkpoint, ckpt)
-    filepath = os.path.join(checkpoint, 'last.pth.tar')
+    #filepath = osp.join(checkpoint, ckpt)
+    filepath = osp.join(checkpoint, 'last.pth.tar')
     if not os.path.exists(checkpoint):
         print("Checkpoint Directory does not exist! Making directory {}".format(checkpoint))
         os.mkdir(checkpoint)
@@ -55,10 +74,10 @@ def save_checkpoint(state, is_best, checkpoint):
         print("Checkpoint Directory exists! ")
     torch.save(state, filepath)
     if is_best:
-        shutil.copyfile(filepath, os.path.join(checkpoint, 'best.pth.tar'))
+        shutil.copyfile(filepath, osp.join(checkpoint, 'best.pth.tar'))
 
 
-def load_checkpoint(checkpoint, model, optimizer=None):
+def load_checkpoint(checkpoint, model, optimizer=None, scheduler=None):
     """Loads model parameters (state_dict) from file_path. If optimizer is provided, loads state_dict of
     optimizer assuming it is present in checkpoint.
     Args:
@@ -73,5 +92,8 @@ def load_checkpoint(checkpoint, model, optimizer=None):
 
     if optimizer:
         optimizer.load_state_dict(checkpoint['optim_dict'])
+
+    if scheduler:
+        scheduler.load_state_dict(checkpoint['sched_dict'])
 
     return checkpoint

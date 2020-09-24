@@ -52,8 +52,21 @@ class METDataset(Dataset):
         path = self.processed_dir
         for idx,raw_path in enumerate(tqdm(self.raw_paths)):
             npzfile = np.load(raw_path)
-            #x = npzfile['arr_0'].astype(np.float32)
-            x = npzfile['arr_0'][:,:4].astype(np.float32)
+            inputs = npzfile['arr_0'].astype(np.float32)
+            pX=inputs[:,0]*np.cos(inputs[:,2])
+            pY=inputs[:,0]*np.sin(inputs[:,2])
+            pT=inputs[:,0]
+            eta=inputs[:,1]
+            d0=inputs[:,4]
+            dz=inputs[:,5]
+            dz[dz==float('inf')]=589 #there is one particle with dz=inf
+            mass=inputs[:,3]
+            puppi=inputs[:,9]
+            pdgId=inputs[:,6]
+            charge=inputs[:,7]
+            fromPV=inputs[:,8]
+            x = np.stack((pX,pY,pT,eta,d0,dz,mass,pdgId,charge,fromPV),axis=-1)
+            #x = npzfile['arr_0'][:,:4].astype(np.float32)
             edge_index = torch.empty((2,0), dtype=torch.long)
             y = npzfile['arr_1'].astype(np.float32)[None]
             outdata = Data(x=torch.from_numpy(x),

@@ -10,31 +10,42 @@ from model.dynamic_reduction_network import DynamicReductionNetwork
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
-        self.drn = DynamicReductionNetwork(input_dim=4, hidden_dim=64,
+        self.drn = DynamicReductionNetwork(input_dim=10, hidden_dim=64,
                                            k = 8,
                                            output_dim=2, aggr='max',
-                                           norm=torch.tensor([1./2950.0, 1./6., 1./3.1416016, 1./1.2050781]))
+                                           norm=torch.tensor([1./2950.0,         #px
+                                                              1./2950.0,         #py
+                                                              1./2950.0,         #pt
+                                                              1./5.265625,       #eta
+                                                              1./143.875,        #d0
+                                                              1./589.,           #dz
+                                                              1./1.2050781,      #mass
+                                                              1./211.,           #pdgId
+                                                              1.,                #charge
+                                                              1./7.              #fromPV
+                                                          ]))
     def forward(self, data):
         output = self.drn(data)
-        softplus=nn.Softplus()
-        x=softplus(output[:,0]).unsqueeze(1)
-        hardtanh=nn.Hardtanh(-math.pi, math.pi)
-        y=hardtanh(output[:,1]).unsqueeze(1)
-        output = torch.cat((x, torch.cos(y), torch.sin(y)), 1)
-        #output = torch.cat((x, y), 1)  
+        met    = nn.Softplus()(output[:,0]).unsqueeze(1)
+        metphi = math.pi*(2*torch.sigmoid(output[:,1]) - 1).unsqueeze(1)
+        #metphi = nn.Hardtanh(-math.pi, math.pi)(output[:,1]).unsqueeze(1)
+        #output = torch.cat((x*torch.cos(y), x*torch.sin(y)), 1)
+        output = torch.cat((met, metphi), 1)  
         return output
 
 def loss_fn(prediction, truth):
 
-    METx = prediction[:,0]*prediction[:,1]
-    METy = prediction[:,0]*prediction[:,2]
-    MET  = prediction[:,0]#torch.sqrt( METx**2 + METy**2 )
-    loss = (MET - truth[:,0])**2
-    loss += (METx - (truth[:,0]*torch.cos(truth[:,1])))**2
-    loss += (METy - (truth[:,0]*torch.sin(truth[:,1])))**2
-    loss /= 3.
+    qTx= truth[:,0]*torch.cos(truth[:,1])
+    qTy= truth[:,0]*torch.sin(truth[:,1])
+    qT = truth[:,0]
+    METx = prediction[:,0]*torch.cos(prediction[:,1])
+    METy = prediction[:,0]*torch.sin(prediction[:,1])
+    MET  = prediction[:,0]
+    
+    loss = ( F.mse_loss(MET, qT, reduction='mean') +
+             F.mse_loss(METx, qTx, reduction='mean') +
+             F.mse_loss(METy, qTy, reduction='mean') ) / 3.
     return loss.mean()
-    #return F.mse_loss(prediction[:,0], truth[:,0], reduction='mean')
 
 def resolution(prediction, truth):
     
@@ -50,16 +61,19 @@ def resolution(prediction, truth):
     # truth qT
     v_qT=torch.stack((qTx,qTy),dim=1)
 
-    METx = prediction[:,0]*prediction[:,1]
-    METy = prediction[:,0]*prediction[:,2]
+    METx = prediction[:,0]*torch.cos(prediction[:,1])
+    METy = prediction[:,0]*torch.sin(prediction[:,1])
     # predicted MET/qT
     v_MET=torch.stack((METx, METy),dim=1)
 
     response = getdot(v_MET,v_qT)/getdot(v_qT,v_qT)
     v_paral_predict = scalermul(response, v_qT)
+    u_paral_predict = getscale(v_paral_predict)-getscale(v_qT)
+    u_paral_predict = u_paral_predict/response
     v_perp_predict = v_MET - v_paral_predict
     u_perp_predict = getscale(v_perp_predict)
-    return u_perp_predict.cpu().detach().numpy()
+    u_perp_predict = u_perp_predict/response
+    return u_perp_predict.cpu().detach().numpy(), u_paral_predict.cpu().detach().numpy(), truth[:,0].cpu().detach().numpy()
 
 # maintain all metrics required in this dictionary- these are used in the training and evaluation loops
 metrics = {
