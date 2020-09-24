@@ -69,11 +69,11 @@ def resolution(prediction, truth):
     response = getdot(v_MET,v_qT)/getdot(v_qT,v_qT)
     v_paral_predict = scalermul(response, v_qT)
     u_paral_predict = getscale(v_paral_predict)-getscale(v_qT)
-    u_paral_predict = u_paral_predict/response
+    u_paral_predict = u_paral_predict
     v_perp_predict = v_MET - v_paral_predict
     u_perp_predict = getscale(v_perp_predict)
-    u_perp_predict = u_perp_predict/response
-    return u_perp_predict.cpu().detach().numpy(), u_paral_predict.cpu().detach().numpy(), truth[:,0].cpu().detach().numpy()
+    u_perp_predict = u_perp_predict
+    return u_perp_predict.cpu().detach().numpy(), u_paral_predict.cpu().detach().numpy(), truth[:,0].cpu().detach().numpy(), response.cpu().detach().numpy()
 
 # maintain all metrics required in this dictionary- these are used in the training and evaluation loops
 metrics = {

@@ -36,6 +36,7 @@ def evaluate(model, loss_fn, dataloader, metrics):
     u_par_arr = []
     u_perp_arr = []
     qT_arr = []
+    R_arr = []
 
     # compute metrics over the dataset
     for data in dataloader:
@@ -47,10 +48,11 @@ def evaluate(model, loss_fn, dataloader, metrics):
         loss = loss_fn(result, data.y)
 
         # compute all metrics on this batch
-        u_perp, u_par, qT = metrics['resolution'](result, data.y)
+        u_perp, u_par, qT, R = metrics['resolution'](result, data.y)
         u_perp_arr=np.concatenate((u_perp_arr,u_perp))
         u_par_arr=np.concatenate((u_par_arr,u_par))
         qT_arr=np.concatenate((qT_arr,qT))
+        R_arr=np.concatenate((R_arr,R))
         loss_avg_arr.append(loss.item())
 
     # compute mean of all metrics in summary
@@ -58,19 +60,30 @@ def evaluate(model, loss_fn, dataloader, metrics):
     inds=np.digitize(qT_arr,bin_edges)
     qT_hist=[]
     u_perp_hist=[]
+    u_perp_scaled_hist=[]
     u_par_hist=[]
+    u_par_scaled_hist=[]
     for i in range(1, len(bin_edges)):
+        R_i=R_arr[np.where(inds==i)[0]]
         u_perp_i=u_perp_arr[np.where(inds==i)[0]]
+        u_perp_scaled_i=u_perp_i*np.mean(R_i)
         u_perp_hist.append((np.quantile(u_perp_i,0.84)-np.quantile(u_perp_i,0.16))/2.)
+        u_perp_scaled_hist.append((np.quantile(u_perp_scaled_i,0.84)-np.quantile(u_perp_scaled_i,0.16))/2.)
         u_par_i=u_par_arr[np.where(inds==i)[0]]
+        u_par_scaled_i=u_par_i*np.mean(R_i)
         u_par_hist.append((np.quantile(u_par_i,0.84)-np.quantile(u_par_i,0.16))/2.)
+        u_par_scaled_hist.append((np.quantile(u_par_scaled_i,0.84)-np.quantile(u_par_scaled_i,0.16))/2.)
         qT_hist.append((bin_edges[i]+bin_edges[i-1])/2.)
 
     u_perp_resolution=np.histogram(qT_hist, bins=20, range=(0,500), weights=u_perp_hist)
+    u_perp_scaled_resolution=np.histogram(qT_hist, bins=20, range=(0,500), weights=u_perp_scaled_hist)
     u_par_resolution=np.histogram(qT_hist, bins=20, range=(0,500), weights=u_par_hist)
+    u_par_scaled_resolution=np.histogram(qT_hist, bins=20, range=(0,500), weights=u_par_scaled_hist)
     resolutions = {
         'u_perp_resolution': u_perp_resolution,
-        'u_par_resolution': u_par_resolution
+        'u_perp_scaled_resolution': u_perp_scaled_resolution,
+        'u_par_resolution': u_par_resolution,
+        'u_par_scaled_resolution':u_par_scaled_resolution
     }
 
     metrics_mean = {
