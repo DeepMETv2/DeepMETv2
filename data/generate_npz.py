@@ -11,7 +11,12 @@ def future_savez(i):
         genZs = gen[gen.isZ]
         genZ  = genZs[genZs.pt.argmax()]
         '''
-        genmet_list = [events.GenMET.pt[i],events.GenMET.phi[i]]#,genZ.pt[i].sum(),genZ.phi[i].sum()]
+        genmet_list = [events.GenMET.pt[i],
+                       events.GenMET.phi[i],
+                       events.MET.pt[i],
+                       events.MET.phi[i],
+                       events.PuppiMET.pt[i],
+                       events.PuppiMET.phi[i]]#,genZ.pt[i].sum(),genZ.phi[i].sum()]
         event_list = []
         n_particles=len(events.JetPFCands.pt[i])
         #print('Event:',i,'number of PF candidates:',n_particles)

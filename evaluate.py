@@ -33,10 +33,12 @@ def evaluate(model, loss_fn, dataloader, metrics):
 
     # summary for current eval loop
     loss_avg_arr = []
-    u_par_arr = []
-    u_perp_arr = []
     qT_arr = []
-    R_arr = []
+    resolutions_arr = {
+        'MET':      [[],[],[]],
+        'pfMET':    [[],[],[]],
+        'puppiMET': [[],[],[]]
+    }
 
     # compute metrics over the dataset
     for data in dataloader:
@@ -48,43 +50,58 @@ def evaluate(model, loss_fn, dataloader, metrics):
         loss = loss_fn(result, data.y)
 
         # compute all metrics on this batch
-        u_perp, u_par, qT, R = metrics['resolution'](result, data.y)
-        u_perp_arr=np.concatenate((u_perp_arr,u_perp))
-        u_par_arr=np.concatenate((u_par_arr,u_par))
+        resolutions, qT= metrics['resolution'](result, data.y)
+        for key in resolutions_arr:
+            for i in range(len(resolutions_arr[key])):
+                resolutions_arr[key][i]=np.concatenate((resolutions_arr[key][i],resolutions[key][i]))
         qT_arr=np.concatenate((qT_arr,qT))
-        R_arr=np.concatenate((R_arr,R))
         loss_avg_arr.append(loss.item())
 
     # compute mean of all metrics in summary
     bin_edges=np.arange(0,500,25)
     inds=np.digitize(qT_arr,bin_edges)
     qT_hist=[]
-    u_perp_hist=[]
-    u_perp_scaled_hist=[]
-    u_par_hist=[]
-    u_par_scaled_hist=[]
     for i in range(1, len(bin_edges)):
-        R_i=R_arr[np.where(inds==i)[0]]
-        u_perp_i=u_perp_arr[np.where(inds==i)[0]]
-        u_perp_scaled_i=u_perp_i*np.mean(R_i)
-        u_perp_hist.append((np.quantile(u_perp_i,0.84)-np.quantile(u_perp_i,0.16))/2.)
-        u_perp_scaled_hist.append((np.quantile(u_perp_scaled_i,0.84)-np.quantile(u_perp_scaled_i,0.16))/2.)
-        u_par_i=u_par_arr[np.where(inds==i)[0]]
-        u_par_scaled_i=u_par_i*np.mean(R_i)
-        u_par_hist.append((np.quantile(u_par_i,0.84)-np.quantile(u_par_i,0.16))/2.)
-        u_par_scaled_hist.append((np.quantile(u_par_scaled_i,0.84)-np.quantile(u_par_scaled_i,0.16))/2.)
         qT_hist.append((bin_edges[i]+bin_edges[i-1])/2.)
+    
+    resolution_hists={}
+    for key in resolutions_arr:
 
-    u_perp_resolution=np.histogram(qT_hist, bins=20, range=(0,500), weights=u_perp_hist)
-    u_perp_scaled_resolution=np.histogram(qT_hist, bins=20, range=(0,500), weights=u_perp_scaled_hist)
-    u_par_resolution=np.histogram(qT_hist, bins=20, range=(0,500), weights=u_par_hist)
-    u_par_scaled_resolution=np.histogram(qT_hist, bins=20, range=(0,500), weights=u_par_scaled_hist)
-    resolutions = {
-        'u_perp_resolution': u_perp_resolution,
-        'u_perp_scaled_resolution': u_perp_scaled_resolution,
-        'u_par_resolution': u_par_resolution,
-        'u_par_scaled_resolution':u_par_scaled_resolution
-    }
+        R_arr=resolutions_arr[key][2] 
+        u_perp_arr=resolutions_arr[key][0]
+        u_par_arr=resolutions_arr[key][1]
+
+        u_perp_hist=[]
+        u_perp_scaled_hist=[]
+        u_par_hist=[]
+        u_par_scaled_hist=[]
+        R_hist=[]
+
+        for i in range(1, len(bin_edges)):
+            R_i=R_arr[np.where(inds==i)[0]]
+            R_hist.append(np.mean(R_i))
+            u_perp_i=u_perp_arr[np.where(inds==i)[0]]
+            u_perp_scaled_i=u_perp_i/np.mean(R_i)
+            u_perp_hist.append((np.quantile(u_perp_i,0.84)-np.quantile(u_perp_i,0.16))/2.)
+            u_perp_scaled_hist.append((np.quantile(u_perp_scaled_i,0.84)-np.quantile(u_perp_scaled_i,0.16))/2.)
+            u_par_i=u_par_arr[np.where(inds==i)[0]]
+            u_par_scaled_i=u_par_i/np.mean(R_i)
+            u_par_hist.append((np.quantile(u_par_i,0.84)-np.quantile(u_par_i,0.16))/2.)
+            u_par_scaled_hist.append((np.quantile(u_par_scaled_i,0.84)-np.quantile(u_par_scaled_i,0.16))/2.)
+
+        u_perp_resolution=np.histogram(qT_hist, bins=20, range=(0,500), weights=u_perp_hist)
+        u_perp_scaled_resolution=np.histogram(qT_hist, bins=20, range=(0,500), weights=u_perp_scaled_hist)
+        u_par_resolution=np.histogram(qT_hist, bins=20, range=(0,500), weights=u_par_hist)
+        u_par_scaled_resolution=np.histogram(qT_hist, bins=20, range=(0,500), weights=u_par_scaled_hist)
+        R=np.histogram(qT_hist, bins=20, range=(0,500), weights=R_hist)
+
+        resolution_hists[key] = {
+            'u_perp_resolution': u_perp_resolution,
+            'u_perp_scaled_resolution': u_perp_scaled_resolution,
+            'u_par_resolution': u_par_resolution,
+            'u_par_scaled_resolution':u_par_scaled_resolution,
+            'R': R
+        }
 
     metrics_mean = {
         'loss': np.mean(loss_avg_arr),
@@ -93,7 +110,7 @@ def evaluate(model, loss_fn, dataloader, metrics):
     metrics_string = " ; ".join("{}: {:05.3f}".format(k, v)
                                 for k, v in metrics_mean.items())
     print("- Eval metrics : " + metrics_string)
-    return metrics_mean, resolutions
+    return metrics_mean, resolution_hists
 
 
 if __name__ == '__main__':
@@ -121,6 +138,6 @@ if __name__ == '__main__':
 
     # Evaluate
     test_metrics, resolutions = evaluate(model, loss_fn, test_dl, metrics)
-    save_path = os.path.join(model_dir, "metrics_val_{}.json".format(args.restore_file))
-    utils.save_dict_to_json(test_metrics, save_path)
+    #save_path = os.path.join(model_dir, "metrics_val_{}.json".format(args.restore_file))
+    #utils.save_dict_to_json(test_metrics, save_path)
     utils.save(resolutions, os.path.join(model_dir, "{}.resolutions".format(args.restore_file)))

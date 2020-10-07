@@ -65,7 +65,8 @@ class METDataset(Dataset):
             pdgId=inputs[:,6]
             charge=inputs[:,7]
             fromPV=inputs[:,8]
-            x = np.stack((pX,pY,pT,eta,d0,dz,mass,pdgId,charge,fromPV),axis=-1)
+            puppiWeight=inputs[:,9]
+            x = np.stack((pX,pY,pT,eta,d0,dz,mass,pdgId,charge,fromPV,puppiWeight),axis=-1)
             #x = npzfile['arr_0'][:,:4].astype(np.float32)
             edge_index = torch.empty((2,0), dtype=torch.long)
             y = npzfile['arr_1'].astype(np.float32)[None]
