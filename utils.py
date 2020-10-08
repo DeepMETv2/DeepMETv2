@@ -67,14 +67,16 @@ def save_checkpoint(state, is_best, checkpoint):
     #ckpt = 'ckpt_{0}.pth.tar'.format(state['epoch'])
     #filepath = osp.join(checkpoint, ckpt)
     filepath = osp.join(checkpoint, 'last.pth.tar')
+    if is_best:
+        filepath = osp.join(checkpoint, 'best.pth.tar')
     if not os.path.exists(checkpoint):
         print("Checkpoint Directory does not exist! Making directory {}".format(checkpoint))
         os.mkdir(checkpoint)
     else:
         print("Checkpoint Directory exists! ")
     torch.save(state, filepath)
-    if is_best:
-        shutil.copyfile(filepath, osp.join(checkpoint, 'best.pth.tar'))
+    #if is_best:
+    #    shutil.copyfile(filepath, osp.join(checkpoint, 'best.pth.tar'))
 
 
 def load_checkpoint(checkpoint, model, optimizer=None, scheduler=None):

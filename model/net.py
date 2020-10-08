@@ -5,8 +5,11 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch_scatter import scatter_add
 from model.dynamic_reduction_network import DynamicReductionNetwork
+from model.graph_met_network import GraphMETNetwork
 
+'''
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
@@ -31,9 +34,20 @@ class Net(nn.Module):
         metphi = math.pi*(2*torch.sigmoid(output[:,1]) - 1).unsqueeze(1)
         output = torch.cat((met, metphi), 1)  
         return output
+'''
+class Net(nn.Module):
+    def __init__(self, continuous_dim, categorical_dim):
+        super(Net, self).__init__()
+        self.graphnet = GraphMETNetwork(continuous_dim, categorical_dim,
+                                        output_dim=1, hidden_dim=32,
+                                        conv_depth=3)
+    
+    def forward(self, x_cont, x_cat, edge_index, batch):
+        weights = self.graphnet(x_cont, x_cat, edge_index, batch)
+        return torch.sigmoid(weights)
 
-def loss_fn(prediction, truth):
-
+def loss_fn(weights, prediction, truth, batch):
+    '''
     qTx= truth[:,0]*torch.cos(truth[:,1])
     qTy= truth[:,0]*torch.sin(truth[:,1])
     qT = truth[:,0]
@@ -49,9 +63,19 @@ def loss_fn(prediction, truth):
     #loss = ( F.mse_loss(MET, qT, reduction='mean') +
     #F.mse_loss(METy, qTy, reduction='mean') ) / 2.
     loss = torch.sqrt(lossMET.mean()*lossMETphi.mean())
+    '''
+    true_MET = truth[:,0]
+    true_METphi = truth[:,1]
+    px=prediction[:,0]
+    py=prediction[:,1]
+    true_px=true_MET*torch.cos(true_METphi)
+    true_py=true_MET*torch.sin(true_METphi)
+    METx = scatter_add(weights*px, batch)
+    METy = scatter_add(weights*py, batch)
+    loss=0.5*( ( METx + true_px)**2 + ( METy + true_py)**2 ).mean()
     return loss
 
-def resolution(prediction, truth):
+def resolution(weights, prediction, truth, batch):
     
     def getdot(vx, vy):
         return torch.einsum('bi,bi->b',vx,vy)
@@ -75,8 +99,10 @@ def resolution(prediction, truth):
     # PF MET                                                                                                                                                            
     v_puppiMET=torch.stack((pfMETx, pfMETy),dim=1)
 
-    METx = prediction[:,0]*torch.cos(prediction[:,1])
-    METy = prediction[:,0]*torch.sin(prediction[:,1])
+    px=prediction[:,0]
+    py=prediction[:,1]
+    METx = scatter_add(weights*px, batch)
+    METy = scatter_add(weights*py, batch)
     # predicted MET/qT
     v_MET=torch.stack((METx, METy),dim=1)
 

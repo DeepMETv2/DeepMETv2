@@ -13,12 +13,15 @@ import utils
 import model.net as net
 import model.data_loader as data_loader
 
+from torch_geometric.utils import to_undirected
+from torch_cluster import radius_graph, knn_graph
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--restore_file', default='best', help="name of the file in --model_dir \
                      containing weights to load")
 
 
-def evaluate(model, loss_fn, dataloader, metrics):
+def evaluate(model, loss_fn, dataloader, metrics, deltaR):
     """Evaluate the model on `num_steps` batches.
 
     Args:
@@ -44,13 +47,18 @@ def evaluate(model, loss_fn, dataloader, metrics):
     for data in dataloader:
 
         data = data.to('cuda')
-
+        x_cont = data.x[:,:7]
+        x_cat = data.x[:,8:]
+        phi = torch.atan2(data.x[:,1], data.x[:,0])
+        etaphi = torch.cat([data.x[:,3][:,None], phi[:,None]], dim=1)
+        # NB: there is a problem right now for comparing hits at the +/- pi boundary                                                
+        edge_index = radius_graph(etaphi, r=deltaR, batch=data.batch, loop=True, max_num_neighbors=255)
         # compute model output
-        result = model(data)
-        loss = loss_fn(result, data.y)
+        result = model(x_cont, x_cat, edge_index, data.batch)
+        loss = loss_fn(result, data.x, data.y, data.batch)
 
         # compute all metrics on this batch
-        resolutions, qT= metrics['resolution'](result, data.y)
+        resolutions, qT= metrics['resolution'](result, data.x, data.y, data.batch)
         for key in resolutions_arr:
             for i in range(len(resolutions_arr[key])):
                 resolutions_arr[key][i]=np.concatenate((resolutions_arr[key][i],resolutions[key][i]))
@@ -122,22 +130,23 @@ if __name__ == '__main__':
 
     # fetch dataloaders
     dataloaders = data_loader.fetch_dataloader(data_dir=osp.join(os.environ['PWD'],'data'), 
-                                               batch_size=60, 
+                                               batch_size=30, 
                                                validation_split=.1)
     test_dl = dataloaders['test']
 
     # Define the model
-    model = net.Net().to('cuda')
+    model = net.Net(7, 3).to('cuda')
 
     loss_fn = net.loss_fn
     metrics = net.metrics
     model_dir = osp.join(os.environ['PWD'],'ckpts')
+    deltaR = 0.4
 
     # Reload weights from the saved file
     utils.load_checkpoint(os.path.join(model_dir, args.restore_file + '.pth.tar'), model)
 
     # Evaluate
-    test_metrics, resolutions = evaluate(model, loss_fn, test_dl, metrics)
+    test_metrics, resolutions = evaluate(model, loss_fn, test_dl, metrics, deltaR)
     #save_path = os.path.join(model_dir, "metrics_val_{}.json".format(args.restore_file))
     #utils.save_dict_to_json(test_metrics, save_path)
     utils.save(resolutions, os.path.join(model_dir, "{}.resolutions".format(args.restore_file)))
