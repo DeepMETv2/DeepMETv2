@@ -34,8 +34,8 @@ def train(model, optimizer, scheduler, loss_fn, dataloader, epoch):
         for data in dataloader:
             optimizer.zero_grad()
             data = data.to('cuda')
-            x_cont = data.x[:,:7]
-            x_cat = data.x[:,8:]
+            x_cont = data.x[:,:8]
+            x_cat = data.x[:,8:].long()
             phi = torch.atan2(data.x[:,1], data.x[:,0])
             etaphi = torch.cat([data.x[:,3][:,None], phi[:,None]], dim=1)        
             # NB: there is a problem right now for comparing hits at the +/- pi boundary
@@ -63,10 +63,10 @@ if __name__ == '__main__':
 
     #model = net.Net().to('cuda')
     #model = torch.jit.script(net.Net(7, 3)).to('cuda') # [px, py, pt, eta, d0, dz, mass], [pdgid, charge, fromPV]
-    model = net.Net(7, 3).to('cuda')
+    model = net.Net(8, 3).to('cuda')
     #optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=5e-3)
-    optimizer = torch.optim.AdamW(model.parameters(),lr=0.0001)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.5, patience=5, threshold=0.05)
+    optimizer = torch.optim.AdamW(model.parameters(),lr=0.001)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.5, patience=500, threshold=0.05)
     first_epoch = 0
     best_validation_loss = 10e7
     deltaR = 0.4
@@ -74,7 +74,7 @@ if __name__ == '__main__':
     loss_fn = net.loss_fn
     metrics = net.metrics
 
-    model_dir = osp.join(os.environ['PWD'],'ckpts')
+    model_dir = osp.join(os.environ['PWD'],'ckpts_puppi')
 
     # reload weights from restore_file if specified
     if args.restore_file is not None:

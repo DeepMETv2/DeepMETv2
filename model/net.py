@@ -39,8 +39,8 @@ class Net(nn.Module):
     def __init__(self, continuous_dim, categorical_dim):
         super(Net, self).__init__()
         self.graphnet = GraphMETNetwork(continuous_dim, categorical_dim,
-                                        output_dim=1, hidden_dim=32,
-                                        conv_depth=3)
+                                        output_dim=1, hidden_dim=64,
+                                        conv_depth=2)
     
     def forward(self, x_cont, x_cat, edge_index, batch):
         weights = self.graphnet(x_cont, x_cat, edge_index, batch)

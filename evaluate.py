@@ -47,8 +47,8 @@ def evaluate(model, loss_fn, dataloader, metrics, deltaR):
     for data in dataloader:
 
         data = data.to('cuda')
-        x_cont = data.x[:,:7]
-        x_cat = data.x[:,8:]
+        x_cont = data.x[:,:8]
+        x_cat = data.x[:,8:].long()
         phi = torch.atan2(data.x[:,1], data.x[:,0])
         etaphi = torch.cat([data.x[:,3][:,None], phi[:,None]], dim=1)
         # NB: there is a problem right now for comparing hits at the +/- pi boundary                                                
@@ -130,16 +130,16 @@ if __name__ == '__main__':
 
     # fetch dataloaders
     dataloaders = data_loader.fetch_dataloader(data_dir=osp.join(os.environ['PWD'],'data'), 
-                                               batch_size=30, 
+                                               batch_size=15, 
                                                validation_split=.1)
     test_dl = dataloaders['test']
 
     # Define the model
-    model = net.Net(7, 3).to('cuda')
+    model = net.Net(8, 3).to('cuda')
 
     loss_fn = net.loss_fn
     metrics = net.metrics
-    model_dir = osp.join(os.environ['PWD'],'ckpts')
+    model_dir = osp.join(os.environ['PWD'],'ckpts_puppi')
     deltaR = 0.4
 
     # Reload weights from the saved file
