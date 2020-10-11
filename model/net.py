@@ -97,7 +97,7 @@ def resolution(weights, prediction, truth, batch):
     puppiMETx=truth[:,4]*torch.cos(truth[:,5])
     puppiMETy=truth[:,4]*torch.sin(truth[:,5])
     # PF MET                                                                                                                                                            
-    v_puppiMET=torch.stack((pfMETx, pfMETy),dim=1)
+    v_puppiMET=torch.stack((puppiMETx, puppiMETy),dim=1)
 
     px=prediction[:,0]
     py=prediction[:,1]
