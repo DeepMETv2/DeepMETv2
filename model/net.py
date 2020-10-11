@@ -39,7 +39,7 @@ class Net(nn.Module):
     def __init__(self, continuous_dim, categorical_dim):
         super(Net, self).__init__()
         self.graphnet = GraphMETNetwork(continuous_dim, categorical_dim,
-                                        output_dim=1, hidden_dim=64,
+                                        output_dim=1, hidden_dim=32,
                                         conv_depth=2)
     
     def forward(self, x_cont, x_cat, edge_index, batch):
@@ -115,7 +115,7 @@ def resolution(weights, prediction, truth, batch):
         return [u_perp_predict.cpu().detach().numpy(), u_paral_predict.cpu().detach().numpy(), response.cpu().detach().numpy()]
 
     resolutions= {
-        'MET':      compute(v_MET),
+        'MET':      compute(-v_MET),
         'pfMET':    compute(v_pfMET),
         'puppiMET': compute(v_puppiMET)
     }
