@@ -75,6 +75,34 @@ def loss_fn(weights, prediction, truth, batch):
     loss=0.5*( ( METx + true_px)**2 + ( METy + true_py)**2 ).mean()
     return loss
 
+def getdot(vx, vy):
+    return torch.einsum('bi,bi->b',vx,vy)
+def getscale(vx):
+    return torch.sqrt(getdot(vx,vx))
+def scalermul(a,v):
+    return torch.einsum('b,bi->bi',a,v)
+
+def u_perp_par_loss(weights, prediction, truth, batch):
+    qTx=truth[:,0]*torch.cos(truth[:,1])
+    qTy=truth[:,0]*torch.sin(truth[:,1])
+    # truth qT
+    v_qT=torch.stack((qTx,qTy),dim=1)
+
+    px=prediction[:,0]
+    py=prediction[:,1]
+    METx = -scatter_add(weights*px, batch)
+    METy = -scatter_add(weights*py, batch)
+    # predicted MET/qT
+    vector = torch.stack((METx, METy),dim=1)
+
+    response = getdot(vector,v_qT)/getdot(v_qT,v_qT)
+    v_paral_predict = scalermul(response, v_qT)
+    u_paral_predict = getscale(v_paral_predict)-getscale(v_qT)
+    v_perp_predict = vector - v_paral_predict
+    u_perp_predict = getscale(v_perp_predict)
+    
+    return 0.5*(u_paral_predict**2 + u_perp_predict**2).mean()
+    
 def resolution(weights, prediction, truth, batch):
     
     def getdot(vx, vy):
@@ -105,7 +133,7 @@ def resolution(weights, prediction, truth, batch):
     METy = scatter_add(weights*py, batch)
     # predicted MET/qT
     v_MET=torch.stack((METx, METy),dim=1)
-
+    
     def compute(vector):
         response = getdot(vector,v_qT)/getdot(v_qT,v_qT)
         v_paral_predict = scalermul(response, v_qT)

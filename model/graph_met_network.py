@@ -26,6 +26,9 @@ class GraphMETNetwork(nn.Module):
                                                #nn.BatchNorm1d(hidden_dim//2)
                                               )
 
+        self.encode_all = nn.Sequential(nn.Linear(hidden_dim, hidden_dim),
+                                        nn.ELU()
+                                       )
         self.bn_all = nn.BatchNorm1d(hidden_dim)
         
         self.conv_continuous = nn.ModuleList()        
@@ -53,7 +56,7 @@ class GraphMETNetwork(nn.Module):
 
         emb_cat = self.embed_categorical(torch.cat([emb_chrg, emb_pdg, emb_pv], dim=1))
         
-        emb = self.bn_all(torch.cat([emb_cat, emb_cont], dim=1))
+        emb = self.bn_all(self.encode_all(torch.cat([emb_cat, emb_cont], dim=1)))
                 
         # graph convolution for continuous variables
         for co_conv in self.conv_continuous:
