@@ -127,12 +127,27 @@ def resolution(weights, prediction, truth, batch):
     # PF MET                                                                                                                                                            
     v_puppiMET=torch.stack((puppiMETx, puppiMETy),dim=1)
 
+    has_deepmet = False
+    if truth.size()[1] > 6:
+        has_deepmet = True
+        deepMETResponse_x=truth[:,6]*torch.cos(truth[:,7])
+        deepMETResponse_y=truth[:,6]*torch.sin(truth[:,7])
+        # DeepMET Response Tune
+        v_deepMETResponse=torch.stack((deepMETResponse_x, deepMETResponse_y),dim=1)
+    
+        deepMETResolution_x=truth[:,8]*torch.cos(truth[:,9])
+        deepMETResolution_y=truth[:,8]*torch.sin(truth[:,9])
+        # DeepMET Resolution Tune
+        v_deepMETResolution=torch.stack((deepMETResolution_x, deepMETResolution_y),dim=1)
+    
     px=prediction[:,0]
     py=prediction[:,1]
     METx = scatter_add(weights*px, batch)
     METy = scatter_add(weights*py, batch)
     # predicted MET/qT
     v_MET=torch.stack((METx, METy),dim=1)
+
+    
     
     def compute(vector):
         response = getdot(vector,v_qT)/getdot(v_qT,v_qT)
@@ -147,6 +162,11 @@ def resolution(weights, prediction, truth, batch):
         'pfMET':    compute(v_pfMET),
         'puppiMET': compute(v_puppiMET)
     }
+    if has_deepmet:
+        resolutions.update({
+            'deepMETResponse':   compute(v_deepMETResponse),
+            'deepMETResolution': compute(v_deepMETResolution)
+        })
     return resolutions, truth[:,0].cpu().detach().numpy()
 
 # maintain all metrics required in this dictionary- these are used in the training and evaluation loops

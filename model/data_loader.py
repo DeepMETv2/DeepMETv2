@@ -30,7 +30,7 @@ class METDataset(Dataset):
     @property
     def raw_file_names(self):
         if not hasattr(self,'input_files'):
-            self.input_files = glob.glob(self.raw_dir+'/*.npz')
+            self.input_files = sorted(glob.glob(self.raw_dir+'/*.npz'))
         return [f.split('/')[-1] for f in self.input_files]
     
     @property
@@ -81,12 +81,13 @@ def fetch_dataloader(data_dir, batch_size, validation_split):
     dataset_size = len(dataset)
     indices = list(range(dataset_size))
     split = int(np.floor(validation_split * dataset_size))
+    print(split)
     random_seed= 42
-    np.random.seed(random_seed)
-    np.random.shuffle(indices)
-    train_indices, val_indices = indices[split:], indices[:split]
+    train_subset, val_subset = torch.utils.data.random_split(dataset, [dataset_size - split, split],
+                                                             generator=torch.Generator().manual_seed(random_seed))
+    print(len(train_subset), len(val_subset))
     dataloaders = {
-        'train':  DataLoader(dataset, batch_size=batch_size, sampler=SubsetRandomSampler(train_indices)),
-        'test':   DataLoader(dataset, batch_size=batch_size, sampler=SubsetRandomSampler(val_indices))
+        'train':  DataLoader(train_subset, batch_size=batch_size, shuffle=False),
+        'test':   DataLoader(val_subset, batch_size=batch_size, shuffle=False)
         }
     return dataloaders

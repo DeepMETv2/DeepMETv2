@@ -37,15 +37,24 @@ def evaluate(model, loss_fn, dataloader, metrics, deltaR):
     # summary for current eval loop
     loss_avg_arr = []
     qT_arr = []
+    has_deepmet = False
     resolutions_arr = {
         'MET':      [[],[],[]],
         'pfMET':    [[],[],[]],
-        'puppiMET': [[],[],[]]
+        'puppiMET': [[],[],[]],
     }
 
     # compute metrics over the dataset
     for data in dataloader:
 
+        has_deepmet = (data.y.size()[1] > 6)
+        
+        if has_deepmet == True and 'deepMETResponse' not in resolutions_arr.keys():
+            resolutions_arr.update({
+                'deepMETResponse': [[],[],[]],
+                'deepMETResolution': [[],[],[]]
+            })
+        
         data = data.to('cuda')
         x_cont = data.x[:,:8]
         x_cat = data.x[:,8:].long()
@@ -129,8 +138,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # fetch dataloaders
-    dataloaders = data_loader.fetch_dataloader(data_dir=osp.join(os.environ['PWD'],'data'), 
-                                               batch_size=15, 
+    dataloaders = data_loader.fetch_dataloader(data_dir=osp.join(os.environ['PWD'],'data2'), 
+                                               batch_size=180, 
                                                validation_split=.1)
     test_dl = dataloaders['test']
 
@@ -139,7 +148,7 @@ if __name__ == '__main__':
 
     loss_fn = net.loss_fn
     metrics = net.metrics
-    model_dir = osp.join(os.environ['PWD'],'ckpts_puppi')
+    model_dir = osp.join(os.environ['PWD'],'ckpts_encodeall_mse_puppi_newdata')
     deltaR = 0.4
 
     # Reload weights from the saved file

@@ -55,12 +55,14 @@ def train(model, optimizer, scheduler, loss_fn, dataloader, epoch):
 if __name__ == '__main__':
     args = parser.parse_args()
 
-    dataloaders = data_loader.fetch_dataloader(data_dir=osp.join(os.environ['PWD'],'data'), 
-                                               batch_size=30, 
+    dataloaders = data_loader.fetch_dataloader(data_dir=osp.join(os.environ['PWD'],'data2'), 
+                                               batch_size=180, 
                                                validation_split=.1)
     train_dl = dataloaders['train']
     test_dl = dataloaders['test']
 
+    print(len(train_dl), len(test_dl))
+    
     #model = net.Net().to('cuda')
     #model = torch.jit.script(net.Net(7, 3)).to('cuda') # [px, py, pt, eta, d0, dz, mass], [pdgid, charge, fromPV]
     model = net.Net(8, 3).to('cuda')
@@ -74,7 +76,7 @@ if __name__ == '__main__':
     loss_fn = net.loss_fn
     metrics = net.metrics
 
-    model_dir = osp.join(os.environ['PWD'],'ckpts_puppi')
+    model_dir = osp.join(os.environ['PWD'],'ckpts_encodeall_mse_puppi_newdata')
 
     # reload weights from restore_file if specified
     if args.restore_file is not None:
