@@ -4,33 +4,38 @@ import os
 from optparse import OptionParser
 import concurrent.futures
 
-def future_savez(i):
-        '''
-        gen = events.GenPart
-        gen['isZ'] = (abs(gen.pdgId)==23)&gen.hasFlags(['fromHardProcess', 'isLastCopy'])
-        genZs = gen[gen.isZ]
-        genZ  = genZs[genZs.pt.argmax()]
-        '''
-        genmet_list = [events.GenMET.pt[i],
-                       events.GenMET.phi[i],
-                       events.MET.pt[i],
-                       events.MET.phi[i],
-                       events.PuppiMET.pt[i],
-                       events.PuppiMET.phi[i]]#,genZ.pt[i].sum(),genZ.phi[i].sum()]
+def future_savez(events, i):
+        event = events[i]
+
+        genmet_list = [
+                event.GenMET.pt * np.cos(event.GenMET.phi),
+                event.GenMET.pt * np.sin(event.GenMET.phi),
+                event.MET.pt * np.cos(event.MET.phi),
+                event.MET.pt * np.sin(event.MET.phi),
+                event.PuppiMET.pt * np.cos(event.PuppiMET.phi),
+                event.PuppiMET.pt * np.sin(event.PuppiMET.phi),
+                event.DeepMETResponseTune.pt * np.cos(event.DeepMETResponseTune.phi),
+                event.DeepMETResponseTune.pt * np.sin(event.DeepMETResponseTune.phi),
+                event.DeepMETResolutionTune.pt * np.cos(event.DeepMETResolutionTune.phi),
+                event.DeepMETResolutionTune.pt * np.sin(event.DeepMETResolutionTune.phi)
+        ]
+
         event_list = []
         n_particles=len(events.JetPFCands.pt[i])
-        #print('Event:',i,'number of PF candidates:',n_particles)
+
         for j in range(n_particles):
-                particle_list=[events.JetPFCands.pt[i][j],
-                               events.JetPFCands.eta[i][j],
-                               events.JetPFCands.phi[i][j],
-                               events.JetPFCands.mass[i][j],
-                               events.JetPFCands.d0[i][j],
-                               events.JetPFCands.dz[i][j],
-                               events.JetPFCands.pdgId[i][j],
-                               events.JetPFCands.charge[i][j],
-                               events.JetPFCands.pvAssocQuality[i][j],
-                               events.JetPFCands.puppiWeight[i][j]]
+                particle_list=[
+                        event.JetPFCands.pt[j],
+                        event.JetPFCands.eta[j],
+                        event.JetPFCands.phi[j],
+                        event.JetPFCands.mass[j],
+                        event.JetPFCands.d0[j],
+                        event.JetPFCands.dz[j],
+                        event.JetPFCands.pdgId[j],
+                        event.JetPFCands.charge[j],
+                        event.JetPFCands.pvAssocQuality[j],
+                        event.JetPFCands.puppiWeight[j]
+                ]
                 event_list.append(particle_list)
         npz_file=os.environ['PWD']+'/data/raw/'+dataset+'_event'+str(i)
         print('Saving file',npz_file+'.npz')
@@ -52,7 +57,7 @@ if __name__ == '__main__':
         print('Total events:',n_events)
         
         for i in range(n_events):
-                future_savez(i)
+                future_savez(events, i)
         '''
         with concurrent.futures.ProcessPoolExecutor(max_workers=1) as executor:
                 futures = set()

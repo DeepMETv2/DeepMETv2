@@ -59,13 +59,14 @@ class METDataset(Dataset):
             eta=inputs[:,1]
             d0=inputs[:,4]
             dz=inputs[:,5]
-            dz[dz==float('inf')]=589 #there is one particle with dz=inf
+            #dz[dz==float('inf')]=589 #there is one particle with dz=inf
             mass=inputs[:,3]
             pdgId=inputs[:,6]
             charge=inputs[:,7]
             fromPV=inputs[:,8]
             puppiWeight=inputs[:,9]
             x = np.stack((pX,pY,pT,eta,d0,dz,mass,puppiWeight,pdgId,charge,fromPV),axis=-1)
+            x = np.nan_to_num(x)
             #x = npzfile['arr_0'][:,:4].astype(np.float32)
             edge_index = torch.empty((2,0), dtype=torch.long)
             y = npzfile['arr_1'].astype(np.float32)[None]

@@ -24,6 +24,10 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--restore_file', default=None,
                     help="Optional, name of the file in --model_dir containing weights to reload before \
                     training")  # 'best' or 'train'
+parser.add_argument('--data', default='data',
+                    help="Name of the data folder")
+parser.add_argument('--ckpts', default='ckpts',
+                    help="Name of the ckpts folder")
 
 
 def train(model, optimizer, scheduler, loss_fn, dataloader, epoch):
@@ -55,9 +59,9 @@ def train(model, optimizer, scheduler, loss_fn, dataloader, epoch):
 if __name__ == '__main__':
     args = parser.parse_args()
 
-    dataloaders = data_loader.fetch_dataloader(data_dir=osp.join(os.environ['PWD'],'data2'), 
-                                               batch_size=180, 
-                                               validation_split=.1)
+    dataloaders = data_loader.fetch_dataloader(data_dir=osp.join(os.environ['PWD'],args.data), 
+                                               batch_size=60, 
+                                               validation_split=.5)
     train_dl = dataloaders['train']
     test_dl = dataloaders['test']
 
@@ -76,7 +80,7 @@ if __name__ == '__main__':
     loss_fn = net.loss_fn
     metrics = net.metrics
 
-    model_dir = osp.join(os.environ['PWD'],'ckpts_encodeall_mse_puppi_newdata')
+    model_dir = osp.join(os.environ['PWD'],args.ckpts)
 
     # reload weights from restore_file if specified
     if args.restore_file is not None:

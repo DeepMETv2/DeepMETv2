@@ -64,12 +64,14 @@ def loss_fn(weights, prediction, truth, batch):
     #F.mse_loss(METy, qTy, reduction='mean') ) / 2.
     loss = torch.sqrt(lossMET.mean()*lossMETphi.mean())
     '''
-    true_MET = truth[:,0]
-    true_METphi = truth[:,1]
+    #true_MET = truth[:,0]
+    #true_METphi = truth[:,1]
     px=prediction[:,0]
     py=prediction[:,1]
-    true_px=true_MET*torch.cos(true_METphi)
-    true_py=true_MET*torch.sin(true_METphi)
+    #true_px=true_MET*torch.cos(true_METphi)
+    #true_py=true_MET*torch.sin(true_METphi)
+    true_px=truth[:,0] 
+    true_py=truth[:,1]      
     METx = scatter_add(weights*px, batch)
     METy = scatter_add(weights*py, batch)
     loss=0.5*( ( METx + true_px)**2 + ( METy + true_py)**2 ).mean()
@@ -83,8 +85,8 @@ def scalermul(a,v):
     return torch.einsum('b,bi->bi',a,v)
 
 def u_perp_par_loss(weights, prediction, truth, batch):
-    qTx=truth[:,0]*torch.cos(truth[:,1])
-    qTy=truth[:,0]*torch.sin(truth[:,1])
+    qTx=truth[:,0]#*torch.cos(truth[:,1])
+    qTy=truth[:,0]#*torch.sin(truth[:,1])
     # truth qT
     v_qT=torch.stack((qTx,qTy),dim=1)
 
@@ -112,31 +114,31 @@ def resolution(weights, prediction, truth, batch):
     def scalermul(a,v):
         return torch.einsum('b,bi->bi',a,v)    
 
-    qTx=truth[:,0]*torch.cos(truth[:,1])
-    qTy=truth[:,0]*torch.sin(truth[:,1])
+    qTx=truth[:,0]#*torch.cos(truth[:,1])
+    qTy=truth[:,1]#*torch.sin(truth[:,1])
     # truth qT
     v_qT=torch.stack((qTx,qTy),dim=1)
 
-    pfMETx=truth[:,2]*torch.cos(truth[:,3])
-    pfMETy=truth[:,2]*torch.sin(truth[:,3])
+    pfMETx=truth[:,2]#*torch.cos(truth[:,3])
+    pfMETy=truth[:,3]#*torch.sin(truth[:,3])
     # PF MET
     v_pfMET=torch.stack((pfMETx, pfMETy),dim=1)
 
-    puppiMETx=truth[:,4]*torch.cos(truth[:,5])
-    puppiMETy=truth[:,4]*torch.sin(truth[:,5])
+    puppiMETx=truth[:,4]#*torch.cos(truth[:,5])
+    puppiMETy=truth[:,5]#*torch.sin(truth[:,5])
     # PF MET                                                                                                                                                            
     v_puppiMET=torch.stack((puppiMETx, puppiMETy),dim=1)
 
     has_deepmet = False
     if truth.size()[1] > 6:
         has_deepmet = True
-        deepMETResponse_x=truth[:,6]*torch.cos(truth[:,7])
-        deepMETResponse_y=truth[:,6]*torch.sin(truth[:,7])
+        deepMETResponse_x=truth[:,6]#*torch.cos(truth[:,7])
+        deepMETResponse_y=truth[:,7]#*torch.sin(truth[:,7])
         # DeepMET Response Tune
         v_deepMETResponse=torch.stack((deepMETResponse_x, deepMETResponse_y),dim=1)
     
-        deepMETResolution_x=truth[:,8]*torch.cos(truth[:,9])
-        deepMETResolution_y=truth[:,8]*torch.sin(truth[:,9])
+        deepMETResolution_x=truth[:,8]#*torch.cos(truth[:,9])
+        deepMETResolution_y=truth[:,9]#*torch.sin(truth[:,9])
         # DeepMET Resolution Tune
         v_deepMETResolution=torch.stack((deepMETResolution_x, deepMETResolution_y),dim=1)
     

@@ -1,0 +1,10 @@
+#nohup python -u data_dytt/generate_npz.py -d dy > dy.log &
+#nohup python -u data_dytt/generate_npz.py -d dy0 > dy0.log &
+#nohup python -u data_dytt/generate_npz.py -d dy1 > dy1.log &
+#nohup python -u data_dytt/generate_npz.py -d dy2 > dy2.log &
+#nohup python -u data_dytt/generate_npz.py -d dy3 > dy3.log &
+#nohup python -u data_dytt/generate_npz.py -d tt > tt.log &
+#nohup python -u data_dytt/generate_npz.py -d tt0 > tt0.log &
+nohup python -u data_dytt/generate_npz.py -d tt1 > tt1.log &
+#nohup python -u data_dytt/generate_npz.py -d tt2 > tt2.log &
+nohup python -u data_dytt/generate_npz.py -d tt3 > tt3.log &

@@ -19,7 +19,10 @@ from torch_cluster import radius_graph, knn_graph
 parser = argparse.ArgumentParser()
 parser.add_argument('--restore_file', default='best', help="name of the file in --model_dir \
                      containing weights to load")
-
+parser.add_argument('--data', default='data',
+                    help="Name of the data folder")
+parser.add_argument('--ckpts', default='ckpts',
+                    help="Name of the ckpts folder")
 
 def evaluate(model, loss_fn, dataloader, metrics, deltaR):
     """Evaluate the model on `num_steps` batches.
@@ -75,7 +78,7 @@ def evaluate(model, loss_fn, dataloader, metrics, deltaR):
         loss_avg_arr.append(loss.item())
 
     # compute mean of all metrics in summary
-    bin_edges=np.arange(0,500,25)
+    bin_edges=np.arange(0,400,20)
     inds=np.digitize(qT_arr,bin_edges)
     qT_hist=[]
     for i in range(1, len(bin_edges)):
@@ -106,11 +109,11 @@ def evaluate(model, loss_fn, dataloader, metrics, deltaR):
             u_par_hist.append((np.quantile(u_par_i,0.84)-np.quantile(u_par_i,0.16))/2.)
             u_par_scaled_hist.append((np.quantile(u_par_scaled_i,0.84)-np.quantile(u_par_scaled_i,0.16))/2.)
 
-        u_perp_resolution=np.histogram(qT_hist, bins=20, range=(0,500), weights=u_perp_hist)
-        u_perp_scaled_resolution=np.histogram(qT_hist, bins=20, range=(0,500), weights=u_perp_scaled_hist)
-        u_par_resolution=np.histogram(qT_hist, bins=20, range=(0,500), weights=u_par_hist)
-        u_par_scaled_resolution=np.histogram(qT_hist, bins=20, range=(0,500), weights=u_par_scaled_hist)
-        R=np.histogram(qT_hist, bins=20, range=(0,500), weights=R_hist)
+        u_perp_resolution=np.histogram(qT_hist, bins=20, range=(0,400), weights=u_perp_hist)
+        u_perp_scaled_resolution=np.histogram(qT_hist, bins=20, range=(0,400), weights=u_perp_scaled_hist)
+        u_par_resolution=np.histogram(qT_hist, bins=20, range=(0,400), weights=u_par_hist)
+        u_par_scaled_resolution=np.histogram(qT_hist, bins=20, range=(0,400), weights=u_par_scaled_hist)
+        R=np.histogram(qT_hist, bins=20, range=(0,400), weights=R_hist)
 
         resolution_hists[key] = {
             'u_perp_resolution': u_perp_resolution,
@@ -138,9 +141,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # fetch dataloaders
-    dataloaders = data_loader.fetch_dataloader(data_dir=osp.join(os.environ['PWD'],'data2'), 
-                                               batch_size=180, 
-                                               validation_split=.1)
+    dataloaders = data_loader.fetch_dataloader(data_dir=osp.join(os.environ['PWD'],args.data), 
+                                               batch_size=60, 
+                                               validation_split=.5)
     test_dl = dataloaders['test']
 
     # Define the model
@@ -148,7 +151,7 @@ if __name__ == '__main__':
 
     loss_fn = net.loss_fn
     metrics = net.metrics
-    model_dir = osp.join(os.environ['PWD'],'ckpts_encodeall_mse_puppi_newdata')
+    model_dir = osp.join(os.environ['PWD'],args.ckpts)
     deltaR = 0.4
 
     # Reload weights from the saved file
