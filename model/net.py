@@ -47,29 +47,9 @@ class Net(nn.Module):
         return torch.sigmoid(weights)
 
 def loss_fn(weights, prediction, truth, batch):
-    '''
-    qTx= truth[:,0]*torch.cos(truth[:,1])
-    qTy= truth[:,0]*torch.sin(truth[:,1])
-    qT = truth[:,0]
-    qTphi= truth[:,1]
-    METx = prediction[:,0]*torch.cos(prediction[:,1])
-    METy = prediction[:,0]*torch.sin(prediction[:,1])
-    MET  = prediction[:,0]
-    METphi = prediction[:,1]
-    lossMET    = (MET-qT)**2/qT
-    lossMETphi = 1.-torch.cos(METphi-qTphi)
-    
-    #loss = ( F.mse_loss(MET, qT, reduction='mean') +
-    #loss = ( F.mse_loss(MET, qT, reduction='mean') +
-    #F.mse_loss(METy, qTy, reduction='mean') ) / 2.
-    loss = torch.sqrt(lossMET.mean()*lossMETphi.mean())
-    '''
-    #true_MET = truth[:,0]
-    #true_METphi = truth[:,1]
+
     px=prediction[:,0]
     py=prediction[:,1]
-    #true_px=true_MET*torch.cos(true_METphi)
-    #true_py=true_MET*torch.sin(true_METphi)
     true_px=truth[:,0] 
     true_py=truth[:,1]      
     METx = scatter_add(weights*px, batch)
