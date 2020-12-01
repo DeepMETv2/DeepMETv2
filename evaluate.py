@@ -16,6 +16,8 @@ import model.data_loader as data_loader
 from torch_geometric.utils import to_undirected
 from torch_cluster import radius_graph, knn_graph
 
+import matplotlib.pyplot as plt
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--restore_file', default='best', help="name of the file in --model_dir \
                      containing weights to load")
@@ -24,7 +26,7 @@ parser.add_argument('--data', default='data',
 parser.add_argument('--ckpts', default='ckpts',
                     help="Name of the ckpts folder")
 
-def evaluate(model, loss_fn, dataloader, metrics, deltaR):
+def evaluate(model, loss_fn, dataloader, metrics, deltaR, model_dir):
     """Evaluate the model on `num_steps` batches.
 
     Args:
@@ -45,6 +47,14 @@ def evaluate(model, loss_fn, dataloader, metrics, deltaR):
         'MET':      [[],[],[]],
         'pfMET':    [[],[],[]],
         'puppiMET': [[],[],[]],
+    }
+
+    colors = {
+        'pfMET': 'black',
+        'puppiMET': 'red',
+        'deepMETResponse': 'blue',
+        'deepMETResolution': 'green',
+        'MET':  'magenta',
     }
 
     # compute metrics over the dataset
@@ -115,6 +125,18 @@ def evaluate(model, loss_fn, dataloader, metrics, deltaR):
         u_par_scaled_resolution=np.histogram(qT_hist, bins=20, range=(0,400), weights=u_par_scaled_hist)
         R=np.histogram(qT_hist, bins=20, range=(0,400), weights=R_hist)
 
+        plt.figure(1)
+        plt.plot(qT_hist, u_perp_hist,        color=colors[key], label=key)
+        plt.figure(2)
+        plt.plot(qT_hist, u_perp_scaled_hist, color=colors[key], label=key)
+        plt.figure(3)
+        plt.plot(qT_hist, u_par_hist,         color=colors[key], label=key)
+        plt.figure(4)
+        plt.plot(qT_hist, u_par_scaled_hist,  color=colors[key], label=key)
+        plt.figure(5)
+        plt.plot(qT_hist, R_hist,             color=colors[key], label=key)
+            
+
         resolution_hists[key] = {
             'u_perp_resolution': u_perp_resolution,
             'u_perp_scaled_resolution': u_perp_scaled_resolution,
@@ -122,6 +144,41 @@ def evaluate(model, loss_fn, dataloader, metrics, deltaR):
             'u_par_scaled_resolution':u_par_scaled_resolution,
             'R': R
         }
+
+    plt.figure(1)
+    plt.axis([0, 400, 0, 25])
+    plt.xlabel(r'$q_{T}$ [GeV]')
+    plt.ylabel(r'$\sigma (u_{\perp})$ [GeV]')
+    plt.legend()
+    plt.savefig(model_dir+'/resol_perp.png')
+
+    plt.figure(2)
+    plt.axis([0, 400, 0, 30])
+    plt.xlabel(r'$q_{T}$ [GeV]')
+    plt.ylabel(r'Scaled $\sigma (u_{\perp})$ [GeV]')
+    plt.legend()
+    plt.savefig(model_dir+'/resol_perp_scaled.png')
+
+    plt.figure(3)
+    plt.axis([0, 400, 0, 45])
+    plt.xlabel(r'$q_{T}$ [GeV]')
+    plt.ylabel(r'$\sigma (u_{\parallel})$ [GeV]')
+    plt.legend()
+    plt.savefig(model_dir+'/resol_parallel.png')
+
+    plt.figure(4)
+    plt.axis([0, 400, 0, 60])
+    plt.xlabel(r'$q_{T}$ [GeV]')
+    plt.ylabel(r'Scaled $\sigma (u_{\parallel})$ [GeV]')
+    plt.legend()
+    plt.savefig(model_dir+'/resol_parallel_scaled.png')
+
+    plt.figure(4)
+    plt.axis([0, 400, 0, 1.2])
+    plt.xlabel(r'$q_{T}$ [GeV]')
+    plt.ylabel(r'Response $-\frac{<u_{\parallel}>}{<q_{T}>}$')
+    plt.legend()
+    plt.savefig(model_dir+'/response_parallel.png')
 
     metrics_mean = {
         'loss': np.mean(loss_avg_arr),
@@ -158,7 +215,7 @@ if __name__ == '__main__':
     utils.load_checkpoint(os.path.join(model_dir, args.restore_file + '.pth.tar'), model)
 
     # Evaluate
-    test_metrics, resolutions = evaluate(model, loss_fn, test_dl, metrics, deltaR)
+    test_metrics, resolutions = evaluate(model, loss_fn, test_dl, metrics, deltaR, model_dir)
     #save_path = os.path.join(model_dir, "metrics_val_{}.json".format(args.restore_file))
     #utils.save_dict_to_json(test_metrics, save_path)
     utils.save(resolutions, os.path.join(model_dir, "{}.resolutions".format(args.restore_file)))

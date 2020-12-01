@@ -109,7 +109,7 @@ if __name__ == '__main__':
                               checkpoint=model_dir)
 
         # Evaluate for one epoch on validation set
-        test_metrics, resolutions = evaluate(model, loss_fn, test_dl, metrics, deltaR)
+        test_metrics, resolutions = evaluate(model, loss_fn, test_dl, metrics, deltaR, model_dir)
 
         validation_loss = test_metrics['loss']
         is_best = (validation_loss<=best_validation_loss)
