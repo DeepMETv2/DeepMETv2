@@ -19,60 +19,60 @@ def DeltaR2(eta1, phi1, eta2, phi2):
     return deta2 + dphi**2
 
 
-def future_savez(events_selected, i):
-    event = events_selected[i]
-    muons = event.Muon[event.Muon.istight]
-    electrons = event.Electron[event.Electron.istight]
+def future_savez(i):
+    #event = events_selected[i]
+    muons = events_selected.Muon[events_selected.Muon.istight]
+    electrons = events_selected.Electron[events_selected.Electron.istight]
     leptons = []
     leptons_px = 0.
     leptons_py = 0.
     for ilep in range(options.n_leptons_subtract):
-        if ilep < muons.size:
-            leptons_px += muons.pt[ilep] * np.cos(muons.phi[ilep])
-            leptons_py += muons.pt[ilep] * np.sin(muons.phi[ilep])
-            leptons.append(muons[ilep])
+        if ilep < muons[i].size:
+            leptons_px += muons.pt[i][ilep] * np.cos(muons.phi[i][ilep])
+            leptons_py += muons.pt[i][ilep] * np.sin(muons.phi[i][ilep])
+            leptons.append(muons[i][ilep])
         #else:
-        if ilep < electrons.size:
-            leptons_px += electrons.pt[ilep] * np.cos(electrons.phi[ilep])
-            leptons_py += electrons.pt[ilep] * np.sin(electrons.phi[ilep])
-            leptons.append(electrons[ilep])
+        if ilep < electrons[i].size:
+            leptons_px += electrons.pt[i][ilep] * np.cos(electrons.phi[i][ilep])
+            leptons_py += electrons.pt[i][ilep] * np.sin(electrons.phi[i][ilep])
+            leptons.append(electrons[i][ilep])
     #print(leptons_px, leptons_py, muons_selected[i].size, electrons_selected[i].size)
 
     genmet_list = [
-        event.GenMET.pt * np.cos(event.GenMET.phi) + leptons_px,
-        event.GenMET.pt * np.sin(event.GenMET.phi) + leptons_py,
-        event.MET.pt * np.cos(event.MET.phi) + leptons_px,
-        event.MET.pt * np.sin(event.MET.phi) + leptons_py,
-        event.PuppiMET.pt * np.cos(event.PuppiMET.phi) + leptons_px,
-        event.PuppiMET.pt * np.sin(event.PuppiMET.phi) + leptons_py,
-        event.DeepMETResponseTune.pt * np.cos(event.DeepMETResponseTune.phi) + leptons_px,
-        event.DeepMETResponseTune.pt * np.sin(event.DeepMETResponseTune.phi) + leptons_py,
-        event.DeepMETResolutionTune.pt * np.cos(event.DeepMETResolutionTune.phi) + leptons_px,
-        event.DeepMETResolutionTune.pt * np.sin(event.DeepMETResolutionTune.phi) + leptons_py
+        events_selected.GenMET.pt[i] * np.cos(events_selected.GenMET.phi[i]) + leptons_px,
+        events_selected.GenMET.pt[i] * np.sin(events_selected.GenMET.phi[i]) + leptons_py,
+        events_selected.MET.pt[i] * np.cos(events_selected.MET.phi[i]) + leptons_px,
+        events_selected.MET.pt[i] * np.sin(events_selected.MET.phi[i]) + leptons_py,
+        events_selected.PuppiMET.pt[i] * np.cos(events_selected.PuppiMET.phi[i]) + leptons_px,
+        events_selected.PuppiMET.pt[i] * np.sin(events_selected.PuppiMET.phi[i]) + leptons_py,
+        events_selected.DeepMETResponseTune.pt[i] * np.cos(events_selected.DeepMETResponseTune.phi[i]) + leptons_px,
+        events_selected.DeepMETResponseTune.pt[i] * np.sin(events_selected.DeepMETResponseTune.phi[i]) + leptons_py,
+        events_selected.DeepMETResolutionTune.pt[i] * np.cos(events_selected.DeepMETResolutionTune.phi[i]) + leptons_px,
+        events_selected.DeepMETResolutionTune.pt[i] * np.sin(events_selected.DeepMETResolutionTune.phi[i]) + leptons_py
     ]
 
     event_list = []
-    n_particles = len(event.JetPFCands.pt)
+    n_particles = len(events_selected.JetPFCands.pt[i])
     #print('Event:',i,'number of PF candidates:',n_particles)
     for j in range(n_particles):
         islepton = False
         for jlep in range(options.n_leptons_subtract):
-            dr2 = DeltaR2(event.JetPFCands.eta[j], event.JetPFCands.phi[j], leptons[jlep].eta, leptons[jlep].phi)
+            dr2 = DeltaR2(events_selected.JetPFCands.eta[i][j], events_selected.JetPFCands.phi[i][j], leptons[jlep].eta, leptons[jlep].phi)
             if dr2 < 0.0001:
                 islepton = True
                 break
         if not islepton:
             particle_list = [
-                event.JetPFCands.pt[j],
-                event.JetPFCands.eta[j],
-                event.JetPFCands.phi[j],
-                event.JetPFCands.mass[j],
-                event.JetPFCands.d0[j],
-                event.JetPFCands.dz[j],
-                event.JetPFCands.pdgId[j],
-                event.JetPFCands.charge[j],
-                event.JetPFCands.pvAssocQuality[j],
-                event.JetPFCands.puppiWeight[j]
+                events_selected.JetPFCands.pt[i][j],
+                events_selected.JetPFCands.eta[i][j],
+                events_selected.JetPFCands.phi[i][j],
+                events_selected.JetPFCands.mass[i][j],
+                events_selected.JetPFCands.d0[i][j],
+                events_selected.JetPFCands.dz[i][j],
+                events_selected.JetPFCands.pdgId[i][j],
+                events_selected.JetPFCands.charge[i][j],
+                events_selected.JetPFCands.pvAssocQuality[i][j],
+                events_selected.JetPFCands.puppiWeight[i][j]
             ]
             event_list.append(particle_list)
         #else:
@@ -130,7 +130,7 @@ if __name__ == '__main__':
     
     for i in range(n_events):
     #for i in range(10):
-        future_savez(events_selected, i)
+        future_savez(i)
     '''
     with concurrent.futures.ProcessPoolExecutor(max_workers=8) as executor:
         futures = set()

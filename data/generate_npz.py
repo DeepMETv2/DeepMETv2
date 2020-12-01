@@ -4,37 +4,37 @@ import os
 from optparse import OptionParser
 import concurrent.futures
 
-def future_savez(events, i):
-        event = events[i]
-
+def future_savez(i):
+        #event = events[i]
         genmet_list = [
-                event.GenMET.pt * np.cos(event.GenMET.phi),
-                event.GenMET.pt * np.sin(event.GenMET.phi),
-                event.MET.pt * np.cos(event.MET.phi),
-                event.MET.pt * np.sin(event.MET.phi),
-                event.PuppiMET.pt * np.cos(event.PuppiMET.phi),
-                event.PuppiMET.pt * np.sin(event.PuppiMET.phi),
-                event.DeepMETResponseTune.pt * np.cos(event.DeepMETResponseTune.phi),
-                event.DeepMETResponseTune.pt * np.sin(event.DeepMETResponseTune.phi),
-                event.DeepMETResolutionTune.pt * np.cos(event.DeepMETResolutionTune.phi),
-                event.DeepMETResolutionTune.pt * np.sin(event.DeepMETResolutionTune.phi)
+                events.GenMET.pt[i] * np.cos(events.GenMET.phi[i]),
+                events.GenMET.pt[i] * np.sin(events.GenMET.phi[i]),
+                events.MET.pt[i] * np.cos(events.MET.phi[i]),
+                events.MET.pt[i] * np.sin(events.MET.phi[i]),
+                events.PuppiMET.pt[i] * np.cos(events.PuppiMET.phi[i]),
+                events.PuppiMET.pt[i] * np.sin(events.PuppiMET.phi[i]),
+                events.DeepMETResponseTune.pt[i] * np.cos(events.DeepMETResponseTune.phi[i]),
+                events.DeepMETResponseTune.pt[i] * np.sin(events.DeepMETResponseTune.phi[i]),
+                events.DeepMETResolutionTune.pt[i] * np.cos(events.DeepMETResolutionTune.phi[i]),
+                events.DeepMETResolutionTune.pt[i] * np.sin(events.DeepMETResolutionTune.phi[i])
         ]
 
         event_list = []
         n_particles=len(events.JetPFCands.pt[i])
+        #print(n_particles)
 
         for j in range(n_particles):
                 particle_list=[
-                        event.JetPFCands.pt[j],
-                        event.JetPFCands.eta[j],
-                        event.JetPFCands.phi[j],
-                        event.JetPFCands.mass[j],
-                        event.JetPFCands.d0[j],
-                        event.JetPFCands.dz[j],
-                        event.JetPFCands.pdgId[j],
-                        event.JetPFCands.charge[j],
-                        event.JetPFCands.pvAssocQuality[j],
-                        event.JetPFCands.puppiWeight[j]
+                        events.JetPFCands.pt[i][j],
+                        events.JetPFCands.eta[i][j],
+                        events.JetPFCands.phi[i][j],
+                        events.JetPFCands.mass[i][j],
+                        events.JetPFCands.d0[i][j],
+                        events.JetPFCands.dz[i][j],
+                        events.JetPFCands.pdgId[i][j],
+                        events.JetPFCands.charge[i][j],
+                        events.JetPFCands.pvAssocQuality[i][j],
+                        events.JetPFCands.puppiWeight[i][j]
                 ]
                 event_list.append(particle_list)
         npz_file=os.environ['PWD']+'/data/raw/'+dataset+'_event'+str(i)
@@ -57,7 +57,7 @@ if __name__ == '__main__':
         print('Total events:',n_events)
         
         for i in range(n_events):
-                future_savez(events, i)
+                future_savez(i)
         '''
         with concurrent.futures.ProcessPoolExecutor(max_workers=1) as executor:
                 futures = set()
