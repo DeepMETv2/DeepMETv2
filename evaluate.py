@@ -57,6 +57,14 @@ def evaluate(model, loss_fn, dataloader, metrics, deltaR, model_dir):
         'MET':  'magenta',
     }
 
+    labels = {
+        'pfMET': 'PF MET',
+        'puppiMET': 'PUPPI MET',
+        'deepMETResponse': 'DeepMETResponse',
+        'deepMETResolution': 'DeepMETResolution',
+        'MET': 'Graph MET'
+    }
+
     # compute metrics over the dataset
     for data in dataloader:
 
@@ -125,16 +133,17 @@ def evaluate(model, loss_fn, dataloader, metrics, deltaR, model_dir):
         u_par_scaled_resolution=np.histogram(qT_hist, bins=20, range=(0,400), weights=u_par_scaled_hist)
         R=np.histogram(qT_hist, bins=20, range=(0,400), weights=R_hist)
 
+        plt.figure()
         plt.figure(1)
-        plt.plot(qT_hist, u_perp_hist,        color=colors[key], label=key)
+        plt.plot(qT_hist, u_perp_hist,        color=colors[key], label=labels[key])
         plt.figure(2)
-        plt.plot(qT_hist, u_perp_scaled_hist, color=colors[key], label=key)
+        plt.plot(qT_hist, u_perp_scaled_hist, color=colors[key], label=labels[key])
         plt.figure(3)
-        plt.plot(qT_hist, u_par_hist,         color=colors[key], label=key)
+        plt.plot(qT_hist, u_par_hist,         color=colors[key], label=labels[key])
         plt.figure(4)
-        plt.plot(qT_hist, u_par_scaled_hist,  color=colors[key], label=key)
+        plt.plot(qT_hist, u_par_scaled_hist,  color=colors[key], label=labels[key])
         plt.figure(5)
-        plt.plot(qT_hist, R_hist,             color=colors[key], label=key)
+        plt.plot(qT_hist, R_hist,             color=colors[key], label=labels[key])
             
 
         resolution_hists[key] = {
@@ -151,6 +160,8 @@ def evaluate(model, loss_fn, dataloader, metrics, deltaR, model_dir):
     plt.ylabel(r'$\sigma (u_{\perp})$ [GeV]')
     plt.legend()
     plt.savefig(model_dir+'/resol_perp.png')
+    plt.clf()
+    plt.close()
 
     plt.figure(2)
     plt.axis([0, 400, 0, 30])
@@ -158,6 +169,8 @@ def evaluate(model, loss_fn, dataloader, metrics, deltaR, model_dir):
     plt.ylabel(r'Scaled $\sigma (u_{\perp})$ [GeV]')
     plt.legend()
     plt.savefig(model_dir+'/resol_perp_scaled.png')
+    plt.clf()
+    plt.close()
 
     plt.figure(3)
     plt.axis([0, 400, 0, 45])
@@ -165,6 +178,8 @@ def evaluate(model, loss_fn, dataloader, metrics, deltaR, model_dir):
     plt.ylabel(r'$\sigma (u_{\parallel})$ [GeV]')
     plt.legend()
     plt.savefig(model_dir+'/resol_parallel.png')
+    plt.clf()
+    plt.close()
 
     plt.figure(4)
     plt.axis([0, 400, 0, 60])
@@ -172,13 +187,18 @@ def evaluate(model, loss_fn, dataloader, metrics, deltaR, model_dir):
     plt.ylabel(r'Scaled $\sigma (u_{\parallel})$ [GeV]')
     plt.legend()
     plt.savefig(model_dir+'/resol_parallel_scaled.png')
+    plt.clf()
+    plt.close()
 
     plt.figure(5)
     plt.axis([0, 400, 0, 1.2])
+    plt.axhline(y=1.0, color='black', linestyle='-.')
     plt.xlabel(r'$q_{T}$ [GeV]')
     plt.ylabel(r'Response $-\frac{<u_{\parallel}>}{<q_{T}>}$')
     plt.legend()
     plt.savefig(model_dir+'/response_parallel.png')
+    plt.clf()
+    plt.close()
 
     metrics_mean = {
         'loss': np.mean(loss_avg_arr),
