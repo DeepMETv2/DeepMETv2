@@ -173,7 +173,7 @@ def evaluate(model, loss_fn, dataloader, metrics, deltaR, model_dir):
     plt.legend()
     plt.savefig(model_dir+'/resol_parallel_scaled.png')
 
-    plt.figure(4)
+    plt.figure(5)
     plt.axis([0, 400, 0, 1.2])
     plt.xlabel(r'$q_{T}$ [GeV]')
     plt.ylabel(r'Response $-\frac{<u_{\parallel}>}{<q_{T}>}$')
