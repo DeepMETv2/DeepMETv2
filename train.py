@@ -28,7 +28,8 @@ parser.add_argument('--data', default='data',
                     help="Name of the data folder")
 parser.add_argument('--ckpts', default='ckpts',
                     help="Name of the ckpts folder")
-
+parser.add_argument('--save_plot', default=True,
+                    help="save_plot while training")
 
 def train(model, optimizer, scheduler, loss_fn, dataloader, epoch):
     model.train()
@@ -61,7 +62,7 @@ if __name__ == '__main__':
 
     dataloaders = data_loader.fetch_dataloader(data_dir=osp.join(os.environ['PWD'],args.data), 
                                                batch_size=60, 
-                                               validation_split=.5)
+                                               validation_split=.2)
     train_dl = dataloaders['train']
     test_dl = dataloaders['test']
 
@@ -109,7 +110,7 @@ if __name__ == '__main__':
                               checkpoint=model_dir)
 
         # Evaluate for one epoch on validation set
-        test_metrics, resolutions = evaluate(model, loss_fn, test_dl, metrics, deltaR, model_dir)
+        test_metrics, resolutions = evaluate(model, loss_fn, test_dl, metrics, deltaR, model_dir, args.save_plot)
 
         validation_loss = test_metrics['loss']
         is_best = (validation_loss<=best_validation_loss)

@@ -17,6 +17,9 @@ from torch_geometric.utils import to_undirected
 from torch_cluster import radius_graph, knn_graph
 
 import matplotlib.pyplot as plt
+import mplhep as hep
+plt.style.use(hep.style.CMS)
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--restore_file', default='best', help="name of the file in --model_dir \
@@ -25,8 +28,10 @@ parser.add_argument('--data', default='data',
                     help="Name of the data folder")
 parser.add_argument('--ckpts', default='ckpts',
                     help="Name of the ckpts folder")
+parser.add_argument('--save_plot', default=True,
+                    help="save_plot while training")
 
-def evaluate(model, loss_fn, dataloader, metrics, deltaR, model_dir):
+def evaluate(model, loss_fn, dataloader, metrics, deltaR, model_dir, save_plot):
     """Evaluate the model on `num_steps` batches.
 
     Args:
@@ -133,19 +138,19 @@ def evaluate(model, loss_fn, dataloader, metrics, deltaR, model_dir):
         u_par_scaled_resolution=np.histogram(qT_hist, bins=20, range=(0,400), weights=u_par_scaled_hist)
         R=np.histogram(qT_hist, bins=20, range=(0,400), weights=R_hist)
 
-        plt.figure()
-        plt.figure(1)
-        plt.plot(qT_hist, u_perp_hist,        color=colors[key], label=labels[key])
-        plt.figure(2)
-        plt.plot(qT_hist, u_perp_scaled_hist, color=colors[key], label=labels[key])
-        plt.figure(3)
-        plt.plot(qT_hist, u_par_hist,         color=colors[key], label=labels[key])
-        plt.figure(4)
-        plt.plot(qT_hist, u_par_scaled_hist,  color=colors[key], label=labels[key])
-        plt.figure(5)
-        plt.plot(qT_hist, R_hist,             color=colors[key], label=labels[key])
+        if(save_plot):
+            plt.figure()
+            plt.figure(1)
+            plt.plot(qT_hist, u_perp_hist,        color=colors[key], label=labels[key])
+            plt.figure(2)
+            plt.plot(qT_hist, u_perp_scaled_hist, color=colors[key], label=labels[key])
+            plt.figure(3)
+            plt.plot(qT_hist, u_par_hist,         color=colors[key], label=labels[key])
+            plt.figure(4)
+            plt.plot(qT_hist, u_par_scaled_hist,  color=colors[key], label=labels[key])
+            plt.figure(5)
+            plt.plot(qT_hist, R_hist,             color=colors[key], label=labels[key])
             
-
         resolution_hists[key] = {
             'u_perp_resolution': u_perp_resolution,
             'u_perp_scaled_resolution': u_perp_scaled_resolution,
@@ -154,51 +159,52 @@ def evaluate(model, loss_fn, dataloader, metrics, deltaR, model_dir):
             'R': R
         }
 
-    plt.figure(1)
-    plt.axis([0, 400, 0, 25])
-    plt.xlabel(r'$q_{T}$ [GeV]')
-    plt.ylabel(r'$\sigma (u_{\perp})$ [GeV]')
-    plt.legend()
-    plt.savefig(model_dir+'/resol_perp.png')
-    plt.clf()
-    plt.close()
+    if(save_plot):
+        plt.figure(1)
+        plt.axis([0, 400, 0, 25])
+        plt.xlabel(r'$q_{T}$ [GeV]')
+        plt.ylabel(r'$\sigma (u_{\perp})$ [GeV]')
+        plt.legend()
+        plt.savefig(model_dir+'/resol_perp.png')
+        plt.clf()
+        plt.close()
 
-    plt.figure(2)
-    plt.axis([0, 400, 0, 30])
-    plt.xlabel(r'$q_{T}$ [GeV]')
-    plt.ylabel(r'Scaled $\sigma (u_{\perp})$ [GeV]')
-    plt.legend()
-    plt.savefig(model_dir+'/resol_perp_scaled.png')
-    plt.clf()
-    plt.close()
+        plt.figure(2)
+        plt.axis([0, 400, 0, 30])
+        plt.xlabel(r'$q_{T}$ [GeV]')
+        plt.ylabel(r'Scaled $\sigma (u_{\perp})$ [GeV]')
+        plt.legend()
+        plt.savefig(model_dir+'/resol_perp_scaled.png')
+        plt.clf()
+        plt.close()
 
-    plt.figure(3)
-    plt.axis([0, 400, 0, 45])
-    plt.xlabel(r'$q_{T}$ [GeV]')
-    plt.ylabel(r'$\sigma (u_{\parallel})$ [GeV]')
-    plt.legend()
-    plt.savefig(model_dir+'/resol_parallel.png')
-    plt.clf()
-    plt.close()
+        plt.figure(3)
+        plt.axis([0, 400, 0, 45])
+        plt.xlabel(r'$q_{T}$ [GeV]')
+        plt.ylabel(r'$\sigma (u_{\parallel})$ [GeV]')
+        plt.legend()
+        plt.savefig(model_dir+'/resol_parallel.png')
+        plt.clf()
+        plt.close()
 
-    plt.figure(4)
-    plt.axis([0, 400, 0, 60])
-    plt.xlabel(r'$q_{T}$ [GeV]')
-    plt.ylabel(r'Scaled $\sigma (u_{\parallel})$ [GeV]')
-    plt.legend()
-    plt.savefig(model_dir+'/resol_parallel_scaled.png')
-    plt.clf()
-    plt.close()
+        plt.figure(4)
+        plt.axis([0, 400, 0, 60])
+        plt.xlabel(r'$q_{T}$ [GeV]')
+        plt.ylabel(r'Scaled $\sigma (u_{\parallel})$ [GeV]')
+        plt.legend()
+        plt.savefig(model_dir+'/resol_parallel_scaled.png')
+        plt.clf()
+        plt.close()
 
-    plt.figure(5)
-    plt.axis([0, 400, 0, 1.2])
-    plt.axhline(y=1.0, color='black', linestyle='-.')
-    plt.xlabel(r'$q_{T}$ [GeV]')
-    plt.ylabel(r'Response $-\frac{<u_{\parallel}>}{<q_{T}>}$')
-    plt.legend()
-    plt.savefig(model_dir+'/response_parallel.png')
-    plt.clf()
-    plt.close()
+        plt.figure(5)
+        plt.axis([0, 400, 0, 1.2])
+        plt.axhline(y=1.0, color='black', linestyle='-.')
+        plt.xlabel(r'$q_{T}$ [GeV]')
+        plt.ylabel(r'Response $-\frac{<u_{\parallel}>}{<q_{T}>}$')
+        plt.legend()
+        plt.savefig(model_dir+'/response_parallel.png')
+        plt.clf()
+        plt.close()
 
     metrics_mean = {
         'loss': np.mean(loss_avg_arr),
@@ -235,7 +241,7 @@ if __name__ == '__main__':
     utils.load_checkpoint(os.path.join(model_dir, args.restore_file + '.pth.tar'), model)
 
     # Evaluate
-    test_metrics, resolutions = evaluate(model, loss_fn, test_dl, metrics, deltaR, model_dir)
+    test_metrics, resolutions = evaluate(model, loss_fn, test_dl, metrics, deltaR, model_dir, args.save_plot)
     #save_path = os.path.join(model_dir, "metrics_val_{}.json".format(args.restore_file))
     #utils.save_dict_to_json(test_metrics, save_path)
     utils.save(resolutions, os.path.join(model_dir, "{}.resolutions".format(args.restore_file)))
