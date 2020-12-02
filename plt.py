@@ -1,8 +1,9 @@
 from utils import load
 import matplotlib.pyplot as plt
 import numpy as np 
-
 import argparse
+import mplhep as hep
+plt.style.use(hep.style.CMS)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--ckpts', default='ckpts_dytt',
