@@ -5,7 +5,7 @@ import numpy as np
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--ckpts', default='ckpts_dytt',
+parser.add_argument('--ckpts', default='ckpts',
                     help="Name of the ckpts folder")
 parser.add_argument('--out', default='out',
                     help="Name of the plots folder")
