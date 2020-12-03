@@ -6,6 +6,7 @@ import os.path as osp
 import os
 
 import numpy as np
+import json
 import torch
 from torch.autograd import Variable
 
@@ -220,11 +221,13 @@ if __name__ == '__main__':
     # fetch dataloaders
     dataloaders = data_loader.fetch_dataloader(data_dir=osp.join(os.environ['PWD'],args.data), 
                                                batch_size=60, 
-                                               validation_split=.5)
+                                               validation_split=.2)
     test_dl = dataloaders['test']
 
     # Define the model
     model = net.Net(8, 3).to('cuda')
+    optimizer = torch.optim.AdamW(model.parameters(),lr=0.001)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.5, patience=500, threshold=0.05)
 
     loss_fn = net.loss_fn
     metrics = net.metrics
@@ -232,10 +235,32 @@ if __name__ == '__main__':
     deltaR = 0.4
 
     # Reload weights from the saved file
-    utils.load_checkpoint(os.path.join(model_dir, args.restore_file + '.pth.tar'), model)
+    restore_ckpt = osp.join(model_dir, args.restore_file + '.pth.tar')
+    ckpt = utils.load_checkpoint(restore_ckpt, model, optimizer, scheduler)
+    epoch = ckpt['epoch']
+    #utils.load_checkpoint(os.path.join(model_dir, args.restore_file + '.pth.tar'), model)
+    with open(osp.join(model_dir, 'metrics_val_best.json')) as restore_metrics:
+            best_validation_loss = json.load(restore_metrics)['loss']
 
     # Evaluate
     test_metrics, resolutions = evaluate(model, loss_fn, test_dl, metrics, deltaR, model_dir)
-    #save_path = os.path.join(model_dir, "metrics_val_{}.json".format(args.restore_file))
-    #utils.save_dict_to_json(test_metrics, save_path)
+    validation_loss = test_metrics['loss']
+    is_best = (validation_loss<best_validation_loss)
+
+    if is_best: 
+        print('Found new best loss!') 
+        best_validation_loss=validation_loss
+        
+        # Save weights
+        utils.save_checkpoint({'epoch': epoch,
+                               'state_dict': model.state_dict(),
+                               'optim_dict': optimizer.state_dict(),
+                               'sched_dict': scheduler.state_dict()},
+                              is_best=True,
+                              checkpoint=model_dir)
+        
+        # Save best val metrics in a json file in the model directory
+        utils.save_dict_to_json(test_metrics, osp.join(model_dir, 'metrics_val_best.json'))
+        utils.save(resolutions, osp.join(model_dir, 'best.resolutions'))
+
     utils.save(resolutions, os.path.join(model_dir, "{}.resolutions".format(args.restore_file)))
