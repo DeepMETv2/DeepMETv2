@@ -67,6 +67,7 @@ class METDataset(Dataset):
             puppiWeight=inputs[:,9]
             x = np.stack((pX,pY,pT,eta,d0,dz,mass,puppiWeight,pdgId,charge,fromPV),axis=-1)
             x = np.nan_to_num(x)
+            x = np.clip(x, -5000., 5000.)
             #x = npzfile['arr_0'][:,:4].astype(np.float32)
             edge_index = torch.empty((2,0), dtype=torch.long)
             y = npzfile['arr_1'].astype(np.float32)[None]
