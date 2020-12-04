@@ -6,14 +6,15 @@ import mplhep as hep
 plt.style.use(hep.style.CMS)
 
 parser = argparse.ArgumentParser()
+parser.add_argument('--restore_file', default=None,
+                    help="Optional, name of the file in --model_dir containing weights to reload before \
+                    training")  # 'best' or 'train'
 parser.add_argument('--ckpts', default='ckpts',
                     help="Name of the ckpts folder")
-parser.add_argument('--out', default='out',
-                    help="Name of the plots folder")
 
 
 args = parser.parse_args()
-a=load(args.ckpts + '/best.resolutions')
+a=load(args.ckpts + '/' +args.restore_file+ '.resolutions')
 colors = {
     'pfMET': 'black',
     'puppiMET': 'red',
@@ -58,13 +59,13 @@ for key in resolutions_arr:
          plt.hist(xx, weights = yy, bins = xx,color=colors[key], label=key,histtype='step',)
 
 if(True):
-    model_dir=args.out
+    model_dir=args.ckpts+'/'+args.restore_file+'_'
     plt.figure(1)
     plt.axis([0, 400, 0, 25])
     plt.xlabel(r'$q_{T}$ [GeV]')
     plt.ylabel(r'$\sigma (u_{\perp})$ [GeV]')
     plt.legend()
-    plt.savefig(model_dir+'/resol_perp.png')
+    plt.savefig(model_dir+'resol_perp.png')
     plt.clf()
     plt.close()
 
@@ -73,7 +74,7 @@ if(True):
     plt.xlabel(r'$q_{T}$ [GeV]')
     plt.ylabel(r'Scaled $\sigma (u_{\perp})$ [GeV]')
     plt.legend()
-    plt.savefig(model_dir+'/resol_perp_scaled.png')
+    plt.savefig(model_dir+'resol_perp_scaled.png')
     plt.clf()
     plt.close()
 
@@ -82,7 +83,7 @@ if(True):
     plt.xlabel(r'$q_{T}$ [GeV]')
     plt.ylabel(r'$\sigma (u_{\parallel})$ [GeV]')
     plt.legend()
-    plt.savefig(model_dir+'/resol_parallel.png')
+    plt.savefig(model_dir+'resol_parallel.png')
     plt.clf()
     plt.close()
 
@@ -91,7 +92,7 @@ if(True):
     plt.xlabel(r'$q_{T}$ [GeV]')
     plt.ylabel(r'Scaled $\sigma (u_{\parallel})$ [GeV]')
     plt.legend()
-    plt.savefig(model_dir+'/resol_parallel_scaled.png')
+    plt.savefig(model_dir+'resol_parallel_scaled.png')
     plt.clf()
     plt.close()
 
@@ -101,7 +102,7 @@ if(True):
     plt.xlabel(r'$q_{T}$ [GeV]')
     plt.ylabel(r'Response $-\frac{<u_{\parallel}>}{<q_{T}>}$')
     plt.legend()
-    plt.savefig(model_dir+'/response_parallel.png')
+    plt.savefig(model_dir+'response_parallel.png')
     plt.clf()
     plt.close()
 
