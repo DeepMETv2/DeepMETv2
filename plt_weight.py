@@ -56,7 +56,45 @@ def plot_weight(model, loss_fn, dataloader, metrics, deltaR, model_dir, saveplot
         130: 'Neutral Hadron',
         211: 'Charged Hadron',
     }
-    tot = torch.empty(0,5).to('cuda')
+    binedges_list = {
+        'Pt': np.arange(-0.05,25.05,0.1),
+        'eta': np.arange(-0.1,5.1,0.2),
+        'Puppi': [-0.05, 0.05, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 1.1],
+        'graph_weight': np.arange(-0.05,1.15,0.1),
+    }
+    #print("bin list:", binedges_list)
+    weight_pt_hist={}
+    weight_eta_hist={}
+    weight_puppi_hist={}
+    weight_pt_histN={}
+    weight_eta_histN={}
+    weight_puppi_histN={}
+    weight_CH_hist={}
+
+    result = torch.empty(0,6).to('cuda')
+    for key in weight_arr:
+        weight_pt_hist[label[key]]=[]
+        weight_pt_histN[label[key]]=[]
+        for i in range(1, len(binedges_list['Pt'])):
+            weight_pt_hist[label[key]].append(0)
+            weight_pt_histN[label[key]].append(0)
+        weight_eta_hist[label[key]]=[]
+        weight_eta_histN[label[key]]=[]
+        for i in range(1, len(binedges_list['eta'])):
+            weight_eta_hist[label[key]].append(0)
+            weight_eta_histN[label[key]].append(0)
+    for key in (1,22,130):
+        weight_puppi_hist[label[key]]=[]
+        weight_puppi_histN[label[key]]=[]
+        for i in range(1, len(binedges_list['Puppi'])):
+            weight_puppi_hist[label[key]].append(0)
+            weight_puppi_histN[label[key]].append(0)
+    weight_CH_hist['puppi0']=[]
+    weight_CH_hist['puppi1']=[]
+    for i in range(1, len(binedges_list['graph_weight'])):
+        weight_CH_hist['puppi0'].append(0)
+        weight_CH_hist['puppi1'].append(0)
+
     # compute metrics over the dataset
     for data in dataloader:
         data = data.to('cuda')
@@ -70,59 +108,61 @@ def plot_weight(model, loss_fn, dataloader, metrics, deltaR, model_dir, saveplot
         edge_index = radius_graph(etaphi, r=deltaR, batch=data.batch, loop=True, max_num_neighbors=255)
         # compute model output
         result = model(x_cont, x_cat, edge_index, data.batch)
-        print("result ",result.shape)
-        print("tot ",tot.shape)
         #pX,pY,pT,eta,d0,dz,mass,puppiWeight,pdgId,charge,fromPV
         #pdg, pt, eta, puppi, weight
-        result = torch.stack((torch.abs(x_cat[:, 0]),torch.abs(x_cont[:, 2]),torch.abs(x_cont[:, 3]), torch.abs(x_cont[:, 7]), result),dim=1)
-        tot = torch.cat((tot,result),0)
-    binedges_list = {
-        'Pt': np.arange(-0.05,25.05,0.1),
-        'eta': np.arange(-0.1,5.1,0.2),
-        'Puppi': [-0.05, 0.05, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 1.1],
-    }
-    #print("bin list:", binedges_list)
-    weight_pt_hist={}
-    weight_eta_hist={}
-    weight_puppi_hist={}
+        ZQt = torch.gather(torch.sqrt(data.y[:,0]**2+data.y[:,1]**2), 0, data.batch)
+        result = torch.stack((torch.abs(x_cat[:, 0]),torch.abs(x_cont[:, 2]),torch.abs(x_cont[:, 3]), torch.abs(x_cont[:, 7]), result,ZQt),dim=1)
+        #result = result[np.where(result[:,5].cpu()<30 )]
+        # weight vs pt
+        # weight vs eta
+        for key in weight_arr:
+            if (key==1):
+                W_arr=result[np.where( (result[:,0].cpu() == key) | (result[:,0].cpu() == 2) )].cpu().detach().numpy()
+            else:
+                W_arr=result[np.where(result[:,0].cpu() == key)].cpu().detach().numpy()
+            for i in range(1, len(binedges_list['Pt'])):
+                W_i=W_arr[np.where( (W_arr[:,1]>=binedges_list['Pt'][i-1]) & (W_arr[:,1]<binedges_list['Pt'][i]) )][:,4]
+                weight_pt_hist[label[key]][i-1]+=np.sum(W_i)
+                weight_pt_histN[label[key]][i-1]+=len(W_i)
+            for i in range(1, len(binedges_list['eta'])):
+                W_i=W_arr[np.where( (W_arr[:,2]>=binedges_list['eta'][i-1]) & (W_arr[:,2]<binedges_list['eta'][i]) )][:,4]
+                weight_eta_hist[label[key]][i-1]+=np.sum(W_i)
+                weight_eta_histN[label[key]][i-1]+=len(W_i)
+        # weight vs puppi
+        for key in (1,22,130):
+            if (key==1):
+                W_arr=result[np.where( (result[:,0].cpu() == key) | (result[:,0].cpu() == 2) )].cpu().detach().numpy()
+            else:
+                W_arr=result[np.where(result[:,0].cpu() == key)].cpu().detach().numpy()
+            for i in range(1, len(binedges_list['Puppi'])):
+                W_i=W_arr[np.where( (W_arr[:,3]>=binedges_list['Puppi'][i-1]) & (W_arr[:,3]<binedges_list['Puppi'][i]) )][:,4]
+                weight_puppi_hist[label[key]][i-1]+=np.sum(W_i)
+                weight_puppi_histN[label[key]][i-1]+=len(W_i)
+        # weight distribution
+        W_arr=result[np.where(result[:,0].cpu() == 211)].cpu().detach().numpy()
+        for i in range(1, len(binedges_list['graph_weight'])):
+            W_i=W_arr[np.where((W_arr[:,3]==0) & (W_arr[:,4]>=binedges_list['graph_weight'][i-1]) & (W_arr[:,4]<binedges_list['graph_weight'][i]) )][:,4]
+            weight_CH_hist['puppi0'][i-1]+=len(W_i)
+            W_i=W_arr[np.where((W_arr[:,3]==1) & (W_arr[:,4]>=binedges_list['graph_weight'][i-1]) & (W_arr[:,4]<binedges_list['graph_weight'][i]) )][:,4]
+            weight_CH_hist['puppi1'][i-1]+=len(W_i)
+
     for key in weight_arr:
-        if (key==1):
-            W_arr=tot[np.where( (tot[:,0].cpu() == key) | (tot[:,0].cpu() == 2) )].cpu().detach().numpy()
-        else:
-            W_arr=tot[np.where(tot[:,0].cpu() == key)].cpu().detach().numpy()
-        weight_pt_hist[label[key]]=[]
         for i in range(1, len(binedges_list['Pt'])):
-            #print("range:", binedges_list['Pt'][i-1], binedges_list['Pt'][i])
-            W_i=W_arr[np.where( (W_arr[:,1]>=binedges_list['Pt'][i-1]) & (W_arr[:,1]<binedges_list['Pt'][i]) )][:,4]
-            if(len(W_i)>0):
-                weight_pt_hist[label[key]].append(np.mean(W_i))
-            else:
-                weight_pt_hist[label[key]].append(0)
-        weight_eta_hist[label[key]]=[]
+            weight_pt_hist[label[key]][i-1]/=1.0*weight_pt_histN[label[key]][i-1]
+            weight_pt_hist[label[key]] = np.nan_to_num(weight_pt_hist[label[key]])
         for i in range(1, len(binedges_list['eta'])):
-            W_i=W_arr[np.where( (W_arr[:,2]>=binedges_list['eta'][i-1]) & (W_arr[:,2]<binedges_list['eta'][i]) )][:,4]
-            if(len(W_i)>0):
-                weight_eta_hist[label[key]].append(np.mean(W_i))
-            else:
-                weight_eta_hist[label[key]].append(0)
+            weight_eta_hist[label[key]][i-1]/=1.0*weight_eta_histN[label[key]][i-1]
+            weight_eta_hist[label[key]] = np.nan_to_num(weight_eta_hist[label[key]])
     for key in (1,22,130):
-        if (key==1):
-            W_arr=tot[np.where( (tot[:,0].cpu() == key) | (tot[:,0].cpu() == 2) )].cpu().detach().numpy()
-        else:
-            W_arr=tot[np.where(tot[:,0].cpu() == key)].cpu().detach().numpy()
-        weight_puppi_hist[label[key]]=[]
         for i in range(1, len(binedges_list['Puppi'])):
-            W_i=W_arr[np.where( (W_arr[:,3]>=binedges_list['Puppi'][i-1]) & (W_arr[:,3]<binedges_list['Puppi'][i]) )][:,4]
-            if(len(W_i)>0):
-                weight_puppi_hist[label[key]].append(np.mean(W_i))
-            else:
-                weight_puppi_hist[label[key]].append(0)
-    #print("weight_puppi_hist:", weight_puppi_hist)
+            weight_puppi_hist[label[key]][i-1]/=1.0*weight_puppi_histN[label[key]][i-1]
+            weight_puppi_hist[label[key]] = np.nan_to_num(weight_puppi_hist[label[key]])
     weights={
       'bin_edges':binedges_list,
       'weight_pt_hist':weight_pt_hist,
       'weight_eta_hist':weight_eta_hist,
       'weight_puppi_hist':weight_puppi_hist,
+      'weight_CH_hist':weight_CH_hist,
     }
     utils.save(weights, 'weight.plt')
     return result
@@ -133,7 +173,7 @@ if __name__ == '__main__':
 
     dataloaders = data_loader.fetch_dataloader(data_dir=osp.join(os.environ['PWD'],args.data), 
                                                batch_size=60, 
-                                               validation_split=0.3)
+                                               validation_split=1)
     train_dl = dataloaders['train']
     test_dl = dataloaders['test']
 
