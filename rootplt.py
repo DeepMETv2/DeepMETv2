@@ -38,11 +38,12 @@ label = [
     'weight_eta_hist',
     'weight_puppi_hist',
     'weight_CH_hist',
+    'weight_qT_hist',
 ]
 pdg = ['HF Candidate','Electron','Muon','Gamma','Neutral Hadron','Charged Hadron',]
 ppdg = ['HF Candidate','Gamma','Neutral Hadron',]
-bin_label=['Pt','eta','Puppi','graph_weight']
-
+bin_label=['Pt','eta','Puppi','graph_weight','qT1D']
+qT1D_label=['TrueMET','GraphMET','PFMET','PUPPIMET','DeepMETResponse','DeepMETResolution']
 
 ############################### weight vs. Pt ############################
 cpt = r.TCanvas( 'cpt', 'GraphMet Weight', 200, 10, 700, 500 )
@@ -204,15 +205,14 @@ cCHW.SetLogy()
 nCHW = len(a['weight_CH_hist']['puppi0'])
 xCHW = array( 'd' )
 yCHW = (array( 'd' ), array( 'd' ))
-print(a['bin_edges']['graph_weight'])
-print(a['weight_CH_hist']['puppi0'])
-print(a['weight_CH_hist']['puppi1'])
+#print(a['bin_edges']['graph_weight'])
+#print(a['weight_CH_hist']['puppi0'])
+#print(a['weight_CH_hist']['puppi1'])
 for i in range( nCHW ):
     xCHW.append( (a['bin_edges']['graph_weight'][i]))
     yCHW[0].append( a['weight_CH_hist']['puppi0'][i] )
     yCHW[1].append( a['weight_CH_hist']['puppi1'][i] )
 xCHW.append( (a['bin_edges']['graph_weight'][nCHW]))
-grCHW={}
 hw1 = r.TH1D('hw1','',nCHW,xCHW)
 hw2 = r.TH1D('hw2','',nCHW,xCHW)
 for i in range( nCHW ):
@@ -242,6 +242,55 @@ cCHW.SetBorderMode(0)
 cCHW.SetBorderSize(2)
 cCHW.SetFrameBorderMode(0)
 cCHW.SaveAs('cCHW.pdf')
+
+############################### qT 1D distribution  ############################
+cqT = r.TCanvas( 'cqT', 'GraphMet Weight', 200, 10, 700, 500 )
+#cqT.SetLogy()
+nqT = len(a['weight_qT_hist']['TrueMET'])
+xqT = array( 'd' )
+yqT = (array( 'd' ), array( 'd' ), array( 'd' ), array( 'd' ), array( 'd' ), array( 'd' ))
+for i in range( nqT ):
+    xqT.append( (a['bin_edges']['qT1D'][i]))
+    for j in range( len(qT1D_label) ):
+        yqT[j].append( a['weight_qT_hist'][qT1D_label[j]][i] )
+xqT.append( (a['bin_edges']['qT1D'][nqT]))
+hqT = {}
+for i in range(len(qT1D_label)):
+    hqT[qT1D_label[i]] = r.TH1D(qT1D_label[i],'',nqT,xqT)
+    hqT[qT1D_label[i]].GetXaxis().SetTitle( 'q_{T} [GeV]' )
+    hqT[qT1D_label[i]].GetXaxis().SetRangeUser(0,400)
+    hqT[qT1D_label[i]].GetYaxis().SetLimits(10000,10000000)
+    hqT[qT1D_label[i]].SetLineColor(color[i]);
+for i in range( nqT ):
+    for j in range(len(qT1D_label)):
+        hqT[qT1D_label[j]].SetBinContent(i+1,yqT[j][i])
+
+hqT[qT1D_label[0]].Draw("HIST")
+hqT[qT1D_label[1]].Draw("same HIST")
+hqT[qT1D_label[2]].Draw("same HIST")
+hqT[qT1D_label[3]].Draw("same HIST")
+hqT[qT1D_label[4]].Draw("same HIST")
+hqT[qT1D_label[5]].Draw("same HIST")
+
+cqT.Update()
+legend_qT = r.TLegend(0.55,0.6,0.98,0.95)
+legend_qT.SetFillStyle(0)
+legend_qT.SetBorderSize(0)
+legend_qT.SetTextSize(0.04)
+legend_qT.SetTextFont(42)
+for i in range(len(qT1D_label)):
+    legend_qT.AddEntry(hqT[qT1D_label[i]], qT1D_label[i], "LE")
+legend_qT.Draw("same")
+cqT.Modified()
+cqT.Update()
+cqT.SetFillColor(0)
+cqT.SetBorderMode(0)
+cqT.SetBorderSize(2)
+cqT.SetFrameBorderMode(0)
+cqT.SaveAs('cqT.pdf')
+
+
+
 
 (input("Please enter an integer to exit: "))
 

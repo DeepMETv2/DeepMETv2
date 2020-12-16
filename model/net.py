@@ -149,7 +149,7 @@ def resolution(weights, prediction, truth, batch):
             'deepMETResponse':   compute(v_deepMETResponse),
             'deepMETResolution': compute(v_deepMETResolution)
         })
-    return resolutions, truth[:,0].cpu().detach().numpy()
+    return resolutions, torch.sqrt(truth[:,0]**2+truth[:,1]**2).cpu().detach().numpy()
 
 # maintain all metrics required in this dictionary- these are used in the training and evaluation loops
 metrics = {
