@@ -30,14 +30,14 @@ parser.add_argument('--ckpts', default='ckpts',
                     help="Name of the ckpts folder")
 
 
-def train(model, optimizer, scheduler, loss_fn, dataloader, epoch):
+def train(model, device, optimizer, scheduler, loss_fn, dataloader, epoch):
     model.train()
     loss_avg_arr = []
     loss_avg = utils.RunningAverage()
     with tqdm(total=len(dataloader)) as t:
         for data in dataloader:
             optimizer.zero_grad()
-            data = data.to('cuda')
+            data = data.to(device)
             x_cont = data.x[:,:8]
             x_cat = data.x[:,8:].long()
             phi = torch.atan2(data.x[:,1], data.x[:,0])
@@ -61,16 +61,15 @@ if __name__ == '__main__':
 
     dataloaders = data_loader.fetch_dataloader(data_dir=osp.join(os.environ['PWD'],args.data), 
                                                batch_size=60, 
-                                               validation_split=.5)
+                                               validation_split=.2)
     train_dl = dataloaders['train']
     test_dl = dataloaders['test']
 
     print(len(train_dl), len(test_dl))
-    
-    #model = net.Net().to('cuda')
-    #model = torch.jit.script(net.Net(7, 3)).to('cuda') # [px, py, pt, eta, d0, dz, mass], [pdgid, charge, fromPV]
-    model = net.Net(8, 3).to('cuda')
-    #optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=5e-3)
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')    
+    #model = net.Net(8, 3).to('cuda')
+    model = net.Net(8, 3).to(device)
     optimizer = torch.optim.AdamW(model.parameters(),lr=0.001)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.5, patience=500, threshold=0.05)
     first_epoch = 0
@@ -98,7 +97,7 @@ if __name__ == '__main__':
             print('Learning rate:', scheduler.state_dict()['_last_lr'][0])
 
         # compute number of batches in one epoch (one full pass over the training set)
-        train(model, optimizer, scheduler, loss_fn, train_dl, epoch)
+        train(model, device, optimizer, scheduler, loss_fn, train_dl, epoch)
 
         # Save weights
         utils.save_checkpoint({'epoch': epoch,
