@@ -4,6 +4,7 @@ import argparse
 import logging
 import os.path as osp
 import os
+import time
 
 import numpy as np
 import json
@@ -85,7 +86,10 @@ def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, model_dir):
         # NB: there is a problem right now for comparing hits at the +/- pi boundary                                                
         edge_index = radius_graph(etaphi, r=deltaR, batch=data.batch, loop=True, max_num_neighbors=255)
         # compute model output
+        tic = time.time()
         result = model(x_cont, x_cat, edge_index, data.batch)
+        toc = time.time()
+        print('Event processing speed', tic - toc)
         loss = loss_fn(result, data.x, data.y, data.batch)
 
         # compute all metrics on this batch
