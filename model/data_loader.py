@@ -65,17 +65,20 @@ class METDataset(Dataset):
             charge=inputs[:,7]
             fromPV=inputs[:,8]
             puppiWeight=inputs[:,9]
+            pvRef=inputs[:,10]
+            pvAssocQuality=inputs[:,11]
             x = np.stack((pX,pY,pT,eta,d0,dz,mass,puppiWeight,pdgId,charge,fromPV),axis=-1)
             x = np.nan_to_num(x)
             x = np.clip(x, -5000., 5000.)
+            assert not np.any(np.isnan(x))
             #x = npzfile['arr_0'][:,:4].astype(np.float32)
             edge_index = torch.empty((2,0), dtype=torch.long)
             y = npzfile['arr_1'].astype(np.float32)[None]
             outdata = Data(x=torch.from_numpy(x),
                            edge_index=edge_index,
                            y=torch.from_numpy(y))
-        
             torch.save(outdata, osp.join(self.processed_dir, 'data_{}.pt'.format(idx)))
+
 
 def fetch_dataloader(data_dir, batch_size, validation_split):
     transform = T.Cartesian(cat=False)
