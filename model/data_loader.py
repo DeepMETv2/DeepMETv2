@@ -79,7 +79,6 @@ class METDataset(Dataset):
                            y=torch.from_numpy(y))
             torch.save(outdata, osp.join(self.processed_dir, 'data_{}.pt'.format(idx)))
 
-
 def fetch_dataloader(data_dir, batch_size, validation_split):
     transform = T.Cartesian(cat=False)
     dataset = METDataset(data_dir)
@@ -87,9 +86,9 @@ def fetch_dataloader(data_dir, batch_size, validation_split):
     indices = list(range(dataset_size))
     split = int(np.floor(validation_split * dataset_size))
     print(split)
-    random_seed= 42
-    train_subset, val_subset = torch.utils.data.random_split(dataset, [dataset_size - split, split],
-                                                             generator=torch.Generator().manual_seed(random_seed))
+    random_seed = 42
+    train_subset, val_subset = torch.utils.data.random_split(dataset, [dataset_size - split, split])#,
+#                                                             generator=torch.Generator().manual_seed(random_seed))
     print(len(train_subset), len(val_subset))
     dataloaders = {
         'train':  DataLoader(train_subset, batch_size=batch_size, shuffle=False),

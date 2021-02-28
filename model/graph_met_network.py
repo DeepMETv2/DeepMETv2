@@ -14,7 +14,7 @@ class GraphMETNetwork(nn.Module):
         
         self.embed_charge = nn.Embedding(3, hidden_dim//4)
         self.embed_pdgid = nn.Embedding(7, hidden_dim//4)
-        self.embed_pv = nn.Embedding(8, hidden_dim//4)
+        self.embed_pv = nn.Embedding(4, hidden_dim//4)
         
         self.embed_continuous = nn.Sequential(nn.Linear(continuous_dim,hidden_dim//2),
                                               nn.ELU(),
