@@ -87,6 +87,9 @@ def fetch_dataloader(data_dir, batch_size, validation_split):
     split = int(np.floor(validation_split * dataset_size))
     print(split)
     random_seed = 42
+    # fix the random generator for train and test
+    # taken from https://pytorch.org/docs/1.5.0/notes/randomness.html
+    torch.manual_seed(random_seed)
     train_subset, val_subset = torch.utils.data.random_split(dataset, [dataset_size - split, split])#,
 #                                                             generator=torch.Generator().manual_seed(random_seed))
     print(len(train_subset), len(val_subset))
