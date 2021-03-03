@@ -103,7 +103,7 @@ if __name__ == '__main__':
             print('Learning rate:', scheduler.state_dict()['_last_lr'][0])
 
         # compute number of batches in one epoch (one full pass over the training set)
-        train(model, device, optimizer, scheduler, loss_fn, train_dl, epoch)
+        train_loss = train(model, device, optimizer, scheduler, loss_fn, train_dl, epoch)
 
         # Save weights
         utils.save_checkpoint({'epoch': epoch,
@@ -140,4 +140,6 @@ if __name__ == '__main__':
 
         utils.save_dict_to_json(test_metrics, osp.join(model_dir, 'metrics_val_last.json'))
         utils.save(resolutions, osp.join(model_dir, 'last.resolutions'))
+
+    loss_log.close()
 
