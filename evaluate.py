@@ -79,7 +79,7 @@ def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, model_dir):
             })
         
         data = data.to(device)
-        x_cont = data.x[:,:8]
+        x_cont = data.x[:,:7]
         x_cat = data.x[:,8:].long()
         phi = torch.atan2(data.x[:,1], data.x[:,0])
         etaphi = torch.cat([data.x[:,3][:,None], phi[:,None]], dim=1)
@@ -89,7 +89,7 @@ def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, model_dir):
         tic = time.time()
         result = model(x_cont, x_cat, edge_index, data.batch)
         toc = time.time()
-        print('Event processing speed', tic - toc)
+        #print('Event processing speed', toc - tic)
         loss = loss_fn(result, data.x, data.y, data.batch)
 
         # compute all metrics on this batch
@@ -230,7 +230,7 @@ if __name__ == '__main__':
 
     # Define the model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = net.Net(8, 3).to(device)
+    model = net.Net(7, 3).to(device)
     optimizer = torch.optim.AdamW(model.parameters(),lr=0.001)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.5, patience=500, threshold=0.05)
 
