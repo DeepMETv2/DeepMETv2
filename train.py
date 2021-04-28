@@ -45,7 +45,10 @@ def train(model, device, optimizer, scheduler, loss_fn, dataloader, epoch):
             etaphi = torch.cat([data.x[:,3][:,None], phi[:,None]], dim=1)        
             # NB: there is a problem right now for comparing hits at the +/- pi boundary
             edge_index = radius_graph(etaphi, r=deltaR, batch=data.batch, loop=True, max_num_neighbors=255)
-            result = model(x_cont, x_cat, edge_index, data.batch)
+            tinf = (torch.ones(len(data.x[:,5]))*float("Inf")).to('cuda')
+            edge_index_dz = radius_graph(torch.where(data.x[:,7]!=0, data.x[:,5], tinf), r=deltaR_dz, batch=data.batch, loop=True, max_num_neighbors=255)
+            cat_edges = torch.cat([edge_index,edge_index_dz],dim=1)
+            result = model(x_cont, x_cat, cat_edges, data.batch)
             loss = loss_fn(result, data.x, data.y, data.batch)
             loss.backward()
             optimizer.step()
@@ -62,7 +65,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     dataloaders = data_loader.fetch_dataloader(data_dir=osp.join(os.environ['PWD'],args.data), 
-                                               batch_size=60, 
+                                               batch_size=60,
                                                validation_split=.2)
     train_dl = dataloaders['train']
     test_dl = dataloaders['test']
@@ -70,13 +73,14 @@ if __name__ == '__main__':
     print(len(train_dl), len(test_dl))
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')    
-    #model = net.Net(8, 3).to('cuda')
-    model = net.Net(7, 3).to(device)
+    model = net.Net(7, 3).to('cuda')
+    #model = net.Net(7, 3).to(device)
     optimizer = torch.optim.AdamW(model.parameters(),lr=0.001)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.5, patience=500, threshold=0.05)
     first_epoch = 0
     best_validation_loss = 10e7
     deltaR = 0.4
+    deltaR_dz = 0.5
 
     loss_fn = net.loss_fn
     metrics = net.metrics
@@ -96,7 +100,7 @@ if __name__ == '__main__':
         with open(osp.join(model_dir, 'metrics_val_best.json')) as restore_metrics:
             best_validation_loss = json.load(restore_metrics)['loss']
 
-    for epoch in range(first_epoch+1,201):
+    for epoch in range(first_epoch+1,101):
 
         print('Current best loss:', best_validation_loss)
         if '_last_lr' in scheduler.state_dict():
@@ -114,7 +118,7 @@ if __name__ == '__main__':
                               checkpoint=model_dir)
 
         # Evaluate for one epoch on validation set
-        test_metrics, resolutions = evaluate(model, device, loss_fn, test_dl, metrics, deltaR, model_dir)
+        test_metrics, resolutions = evaluate(model, device, loss_fn, test_dl, metrics, deltaR,deltaR_dz, model_dir)
 
         validation_loss = test_metrics['loss']
         loss_log.write('%d,%.2f,%.2f\n'%(epoch,train_loss, validation_loss))
