@@ -41,18 +41,25 @@ def train(model, device, optimizer, scheduler, loss_fn, dataloader, epoch):
             x_cont = data.x[:,:8]
             x_cat = data.x[:,8:].long()
             phi = torch.atan2(data.x[:,1], data.x[:,0])
-            etaphi = torch.cat([data.x[:,3][:,None], phi[:,None]], dim=1)        
+            etaphi = torch.cat([data.x[:,3][:,None], phi[:,None]], dim=1)   
+            dz = data.x[:,5] 
             # NB: there is a problem right now for comparing hits at the +/- pi boundary
             edge_index = radius_graph(etaphi, r=deltaR, batch=data.batch, loop=True, max_num_neighbors=255)
-            result = model(x_cont, x_cat, edge_index, data.batch)
+            #edge_index_dz = radius_graph(dz, r=deltaR_dz, batch=data.batch, loop=True, max_num_neighbors=255)
+            tinf = (torch.ones(len(dz))*float("Inf")).to('cuda')
+            edge_index_dz = knn_graph(torch.where(data.x[:,7]!=0, dz, tinf), k=deltaR_dz, batch=data.batch, loop=True)
+            cat_edges = torch.cat([edge_index,edge_index_dz],dim=1)
+            result = model(x_cont, x_cat, cat_edges, data.batch)
             loss = loss_fn(result, data.x, data.y, data.batch)
             loss.backward()
             optimizer.step()
             # update the average loss
-            loss_avg_arr.append(loss.item())
-            loss_avg.update(loss.item())
+            loss_avg_arr.append(loss.cpu().item())
+            loss_avg.update(loss.cpu().item())
             t.set_postfix(loss='{:05.3f}'.format(loss_avg()))
             t.update()
+            #torch.cuda.empty_cache()
+
     scheduler.step(np.mean(loss_avg_arr))
     print('Training epoch: {:02d}, MSE: {:.4f}'.format(epoch, np.mean(loss_avg_arr)))
 
@@ -75,6 +82,7 @@ if __name__ == '__main__':
     first_epoch = 0
     best_validation_loss = 10e7
     deltaR = 0.4
+    deltaR_dz = 10
 
     loss_fn = net.loss_fn
     metrics = net.metrics
@@ -90,7 +98,7 @@ if __name__ == '__main__':
         with open(osp.join(model_dir, 'metrics_val_best.json')) as restore_metrics:
             best_validation_loss = json.load(restore_metrics)['loss']
 
-    for epoch in range(first_epoch+1,201):
+    for epoch in range(first_epoch+1,41):
 
         print('Current best loss:', best_validation_loss)
         if '_last_lr' in scheduler.state_dict():
@@ -108,7 +116,7 @@ if __name__ == '__main__':
                               checkpoint=model_dir)
 
         # Evaluate for one epoch on validation set
-        test_metrics, resolutions = evaluate(model, loss_fn, test_dl, metrics, deltaR, model_dir)
+        test_metrics, resolutions = evaluate(model, device, loss_fn, test_dl, metrics, deltaR, deltaR_dz, model_dir)
 
         validation_loss = test_metrics['loss']
         is_best = (validation_loss<=best_validation_loss)

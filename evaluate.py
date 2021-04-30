@@ -5,6 +5,7 @@ import logging
 import os.path as osp
 import os
 import time
+from tqdm import tqdm
 
 import numpy as np
 import json
@@ -28,7 +29,7 @@ parser.add_argument('--data', default='data',
 parser.add_argument('--ckpts', default='ckpts',
                     help="Name of the ckpts folder")
 
-def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, model_dir):
+def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, deltaR_dz, model_dir):
     """Evaluate the model on `num_steps` batches.
 
     Args:
@@ -41,178 +42,196 @@ def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, model_dir):
     # set model to evaluation mode
     model.eval()
 
-    # summary for current eval loop
-    loss_avg_arr = []
-    qT_arr = []
-    has_deepmet = False
-    resolutions_arr = {
-        'MET':      [[],[],[]],
-        'pfMET':    [[],[],[]],
-        'puppiMET': [[],[],[]],
-    }
-
-    colors = {
-        'pfMET': 'black',
-        'puppiMET': 'red',
-        'deepMETResponse': 'blue',
-        'deepMETResolution': 'green',
-        'MET':  'magenta',
-    }
-
-    labels = {
-        'pfMET': 'PF MET',
-        'puppiMET': 'PUPPI MET',
-        'deepMETResponse': 'DeepMETResponse',
-        'deepMETResolution': 'DeepMETResolution',
-        'MET': 'Graph MET'
-    }
-
-    # compute metrics over the dataset
-    for data in dataloader:
-
-        has_deepmet = (data.y.size()[1] > 6)
-        
-        if has_deepmet == True and 'deepMETResponse' not in resolutions_arr.keys():
-            resolutions_arr.update({
-                'deepMETResponse': [[],[],[]],
-                'deepMETResolution': [[],[],[]]
-            })
-        
-        data = data.to(device)
-        x_cont = data.x[:,:8]
-        x_cat = data.x[:,8:].long()
-        phi = torch.atan2(data.x[:,1], data.x[:,0])
-        etaphi = torch.cat([data.x[:,3][:,None], phi[:,None]], dim=1)
-        # NB: there is a problem right now for comparing hits at the +/- pi boundary                                                
-        edge_index = radius_graph(etaphi, r=deltaR, batch=data.batch, loop=True, max_num_neighbors=255)
-        # compute model output
-        tic = time.time()
-        result = model(x_cont, x_cat, edge_index, data.batch)
-        toc = time.time()
-        print('Event processing speed', tic - toc)
-        loss = loss_fn(result, data.x, data.y, data.batch)
-
-        # compute all metrics on this batch
-        resolutions, qT= metrics['resolution'](result, data.x, data.y, data.batch)
-        for key in resolutions_arr:
-            for i in range(len(resolutions_arr[key])):
-                resolutions_arr[key][i]=np.concatenate((resolutions_arr[key][i],resolutions[key][i]))
-        qT_arr=np.concatenate((qT_arr,qT))
-        loss_avg_arr.append(loss.item())
-
-    # compute mean of all metrics in summary
-    bin_edges=np.arange(0,400,20)
-    inds=np.digitize(qT_arr,bin_edges)
-    qT_hist=[]
-    for i in range(1, len(bin_edges)):
-        qT_hist.append((bin_edges[i]+bin_edges[i-1])/2.)
-    
-    resolution_hists={}
-    for key in resolutions_arr:
-
-        R_arr=resolutions_arr[key][2] 
-        u_perp_arr=resolutions_arr[key][0]
-        u_par_arr=resolutions_arr[key][1]
-
-        u_perp_hist=[]
-        u_perp_scaled_hist=[]
-        u_par_hist=[]
-        u_par_scaled_hist=[]
-        R_hist=[]
-
-        for i in range(1, len(bin_edges)):
-            R_i=R_arr[np.where(inds==i)[0]]
-            R_hist.append(np.mean(R_i))
-            u_perp_i=u_perp_arr[np.where(inds==i)[0]]
-            u_perp_scaled_i=u_perp_i/np.mean(R_i)
-            u_perp_hist.append((np.quantile(u_perp_i,0.84)-np.quantile(u_perp_i,0.16))/2.)
-            u_perp_scaled_hist.append((np.quantile(u_perp_scaled_i,0.84)-np.quantile(u_perp_scaled_i,0.16))/2.)
-            u_par_i=u_par_arr[np.where(inds==i)[0]]
-            u_par_scaled_i=u_par_i/np.mean(R_i)
-            u_par_hist.append((np.quantile(u_par_i,0.84)-np.quantile(u_par_i,0.16))/2.)
-            u_par_scaled_hist.append((np.quantile(u_par_scaled_i,0.84)-np.quantile(u_par_scaled_i,0.16))/2.)
-
-        u_perp_resolution=np.histogram(qT_hist, bins=20, range=(0,400), weights=u_perp_hist)
-        u_perp_scaled_resolution=np.histogram(qT_hist, bins=20, range=(0,400), weights=u_perp_scaled_hist)
-        u_par_resolution=np.histogram(qT_hist, bins=20, range=(0,400), weights=u_par_hist)
-        u_par_scaled_resolution=np.histogram(qT_hist, bins=20, range=(0,400), weights=u_par_scaled_hist)
-        R=np.histogram(qT_hist, bins=20, range=(0,400), weights=R_hist)
-
-        plt.figure()
-        plt.figure(1)
-        plt.plot(qT_hist, u_perp_hist,        color=colors[key], label=labels[key])
-        plt.figure(2)
-        plt.plot(qT_hist, u_perp_scaled_hist, color=colors[key], label=labels[key])
-        plt.figure(3)
-        plt.plot(qT_hist, u_par_hist,         color=colors[key], label=labels[key])
-        plt.figure(4)
-        plt.plot(qT_hist, u_par_scaled_hist,  color=colors[key], label=labels[key])
-        plt.figure(5)
-        plt.plot(qT_hist, R_hist,             color=colors[key], label=labels[key])
-            
-
-        resolution_hists[key] = {
-            'u_perp_resolution': u_perp_resolution,
-            'u_perp_scaled_resolution': u_perp_scaled_resolution,
-            'u_par_resolution': u_par_resolution,
-            'u_par_scaled_resolution':u_par_scaled_resolution,
-            'R': R
+    with torch.no_grad():
+        # summary for current eval loop
+        loss_avg_arr = []
+        qT_arr = []
+        has_deepmet = False
+        resolutions_arr = {
+            'MET':      [[],[],[]],
+            'pfMET':    [[],[],[]],
+            'puppiMET': [[],[],[]],
         }
 
-    plt.figure(1)
-    plt.axis([0, 400, 0, 35])
-    plt.xlabel(r'$q_{T}$ [GeV]')
-    plt.ylabel(r'$\sigma (u_{\perp})$ [GeV]')
-    plt.legend()
-    plt.savefig(model_dir+'/resol_perp.png')
-    plt.clf()
-    plt.close()
+        colors = {
+            'pfMET': 'black',
+            'puppiMET': 'red',
+            'deepMETResponse': 'blue',
+            'deepMETResolution': 'green',
+            'MET':  'magenta',
+        }
 
-    plt.figure(2)
-    plt.axis([0, 400, 0, 35])
-    plt.xlabel(r'$q_{T}$ [GeV]')
-    plt.ylabel(r'Scaled $\sigma (u_{\perp})$ [GeV]')
-    plt.legend()
-    plt.savefig(model_dir+'/resol_perp_scaled.png')
-    plt.clf()
-    plt.close()
+        labels = {
+            'pfMET': 'PF MET',
+            'puppiMET': 'PUPPI MET',
+            'deepMETResponse': 'DeepMETResponse',
+            'deepMETResolution': 'DeepMETResolution',
+            'MET': 'Graph MET'
+        }
 
-    plt.figure(3)
-    plt.axis([0, 400, 0,60])
-    plt.xlabel(r'$q_{T}$ [GeV]')
-    plt.ylabel(r'$\sigma (u_{\parallel})$ [GeV]')
-    plt.legend()
-    plt.savefig(model_dir+'/resol_parallel.png')
-    plt.clf()
-    plt.close()
+        # compute metrics over the dataset
+        with tqdm(total=len(dataloader)) as t:
+            for data in dataloader:
 
-    plt.figure(4)
-    plt.axis([0, 400, 0, 60])
-    plt.xlabel(r'$q_{T}$ [GeV]')
-    plt.ylabel(r'Scaled $\sigma (u_{\parallel})$ [GeV]')
-    plt.legend()
-    plt.savefig(model_dir+'/resol_parallel_scaled.png')
-    plt.clf()
-    plt.close()
+                has_deepmet = (data.y.size()[1] > 6)
+                
+                if has_deepmet == True and 'deepMETResponse' not in resolutions_arr.keys():
+                    resolutions_arr.update({
+                        'deepMETResponse': [[],[],[]],
+                        'deepMETResolution': [[],[],[]]
+                    })
+                
+                data = data.to(device)
+                x_cont = data.x[:,:8]
+                x_cat = data.x[:,8:].long()
+                phi = torch.atan2(data.x[:,1], data.x[:,0])
+                etaphi = torch.cat([data.x[:,3][:,None], phi[:,None]], dim=1)
+                dz = data.x[:,5]
+                # NB: there is a problem right now for comparing hits at the +/- pi boundary                                                
+                edge_index = radius_graph(etaphi, r=deltaR, batch=data.batch, loop=True, max_num_neighbors=255)
+                #edge_index_dz = radius_graph(dz, r=deltaR_dz, batch=data.batch, loop=True, max_num_neighbors=255)
+                tinf = (torch.ones(len(dz))*float("Inf")).to('cuda')
+                edge_index_dz = knn_graph(torch.where(data.x[:,7]!=0, dz, tinf), k=deltaR_dz, batch=data.batch, loop=True)
+                cat_edges = torch.cat([edge_index,edge_index_dz],dim=1)
+                # compute model output
+                #tic = time.time()
+                result = model(x_cont, x_cat, cat_edges, data.batch)
+                #toc = time.time()
+                #print('Event processing speed', toc - tic)
+                loss = loss_fn(result, data.x, data.y, data.batch)
 
-    plt.figure(5)
-    plt.axis([0, 400, 0, 1.2])
-    plt.axhline(y=1.0, color='black', linestyle='-.')
-    plt.xlabel(r'$q_{T}$ [GeV]')
-    plt.ylabel(r'Response $-\frac{<u_{\parallel}>}{<q_{T}>}$')
-    plt.legend()
-    plt.savefig(model_dir+'/response_parallel.png')
-    plt.clf()
-    plt.close()
+                # compute all metrics on this batch
+                resolutions, qT= metrics['resolution'](result, data.x, data.y, data.batch)
+                for key in resolutions_arr:
+                    for i in range(len(resolutions_arr[key])):
+                        resolutions_arr[key][i]=np.concatenate((resolutions_arr[key][i],resolutions[key][i]))
+                qT_arr=np.concatenate((qT_arr,qT))
+                loss_avg_arr.append(loss.cpu().item())
+                
+                t.update()
 
-    metrics_mean = {
-        'loss': np.mean(loss_avg_arr),
-        #'resolution': (np.quantile(resolution_arr,0.84)-np.quantile(resolution_arr,0.16))/2.
-    }
-    metrics_string = " ; ".join("{}: {:05.3f}".format(k, v)
-                                for k, v in metrics_mean.items())
-    print("- Eval metrics : " + metrics_string)
-    return metrics_mean, resolution_hists
+        # compute mean of all metrics in summary
+        bin_edges=np.arange(0,400,20)
+        inds=np.digitize(qT_arr,bin_edges)
+        qT_hist=[]
+        for i in range(1, len(bin_edges)):
+            qT_hist.append((bin_edges[i]+bin_edges[i-1])/2.)
+        
+        resolution_hists={}
+        for key in resolutions_arr:
+
+            R_arr=resolutions_arr[key][2] 
+            u_perp_arr=resolutions_arr[key][0]
+            u_par_arr=resolutions_arr[key][1]
+
+            u_perp_hist=[]
+            u_perp_scaled_hist=[]
+            u_par_hist=[]
+            u_par_scaled_hist=[]
+            R_hist=[]
+
+            for i in range(1, len(bin_edges)):
+                R_i=R_arr[np.where(inds==i)[0]]
+                R_hist.append(np.mean(R_i))
+                u_perp_i=u_perp_arr[np.where(inds==i)[0]]
+                u_perp_scaled_i=u_perp_i/np.mean(R_i)
+                if u_perp_i.size==0:
+                    u_perp_hist.append(0.)
+                    u_perp_scaled_hist.append(0.)
+                else:
+                    u_perp_hist.append((np.quantile(u_perp_i,0.84)-np.quantile(u_perp_i,0.16))/2.)
+                    u_perp_scaled_hist.append((np.quantile(u_perp_scaled_i,0.84)-np.quantile(u_perp_scaled_i,0.16))/2.)
+                
+                u_par_i=u_par_arr[np.where(inds==i)[0]]
+                u_par_scaled_i=u_par_i/np.mean(R_i)
+                if u_par_i.size==0:
+                    u_par_hist.append(0.)
+                    u_par_scaled_hist.append(0.)
+                else:
+                    u_par_hist.append((np.quantile(u_par_i,0.84)-np.quantile(u_par_i,0.16))/2.)
+                    u_par_scaled_hist.append((np.quantile(u_par_scaled_i,0.84)-np.quantile(u_par_scaled_i,0.16))/2.)
+
+            u_perp_resolution=np.histogram(qT_hist, bins=20, range=(0,400), weights=u_perp_hist)
+            u_perp_scaled_resolution=np.histogram(qT_hist, bins=20, range=(0,400), weights=u_perp_scaled_hist)
+            u_par_resolution=np.histogram(qT_hist, bins=20, range=(0,400), weights=u_par_hist)
+            u_par_scaled_resolution=np.histogram(qT_hist, bins=20, range=(0,400), weights=u_par_scaled_hist)
+            R=np.histogram(qT_hist, bins=20, range=(0,400), weights=R_hist)
+
+            plt.figure()
+            plt.figure(1)
+            plt.plot(qT_hist, u_perp_hist,        color=colors[key], label=labels[key])
+            plt.figure(2)
+            plt.plot(qT_hist, u_perp_scaled_hist, color=colors[key], label=labels[key])
+            plt.figure(3)
+            plt.plot(qT_hist, u_par_hist,         color=colors[key], label=labels[key])
+            plt.figure(4)
+            plt.plot(qT_hist, u_par_scaled_hist,  color=colors[key], label=labels[key])
+            plt.figure(5)
+            plt.plot(qT_hist, R_hist,             color=colors[key], label=labels[key])
+                
+
+            resolution_hists[key] = {
+                'u_perp_resolution': u_perp_resolution,
+                'u_perp_scaled_resolution': u_perp_scaled_resolution,
+                'u_par_resolution': u_par_resolution,
+                'u_par_scaled_resolution':u_par_scaled_resolution,
+                'R': R
+            }
+
+        plt.figure(1)
+        plt.axis([0, 400, 0, 35])
+        plt.xlabel(r'$q_{T}$ [GeV]')
+        plt.ylabel(r'$\sigma (u_{\perp})$ [GeV]')
+        plt.legend()
+        plt.savefig(model_dir+'/resol_perp.png')
+        plt.clf()
+        plt.close()
+
+        plt.figure(2)
+        plt.axis([0, 400, 0, 35])
+        plt.xlabel(r'$q_{T}$ [GeV]')
+        plt.ylabel(r'Scaled $\sigma (u_{\perp})$ [GeV]')
+        plt.legend()
+        plt.savefig(model_dir+'/resol_perp_scaled.png')
+        plt.clf()
+        plt.close()
+
+        plt.figure(3)
+        plt.axis([0, 400, 0,60])
+        plt.xlabel(r'$q_{T}$ [GeV]')
+        plt.ylabel(r'$\sigma (u_{\parallel})$ [GeV]')
+        plt.legend()
+        plt.savefig(model_dir+'/resol_parallel.png')
+        plt.clf()
+        plt.close()
+
+        plt.figure(4)
+        plt.axis([0, 400, 0, 60])
+        plt.xlabel(r'$q_{T}$ [GeV]')
+        plt.ylabel(r'Scaled $\sigma (u_{\parallel})$ [GeV]')
+        plt.legend()
+        plt.savefig(model_dir+'/resol_parallel_scaled.png')
+        plt.clf()
+        plt.close()
+
+        plt.figure(5)
+        plt.axis([0, 400, 0, 1.2])
+        plt.axhline(y=1.0, color='black', linestyle='-.')
+        plt.xlabel(r'$q_{T}$ [GeV]')
+        plt.ylabel(r'Response $-\frac{<u_{\parallel}>}{<q_{T}>}$')
+        plt.legend()
+        plt.savefig(model_dir+'/response_parallel.png')
+        plt.clf()
+        plt.close()
+
+        metrics_mean = {
+            'loss': np.mean(loss_avg_arr),
+            #'resolution': (np.quantile(resolution_arr,0.84)-np.quantile(resolution_arr,0.16))/2.
+        }
+        metrics_string = " ; ".join("{}: {:05.3f}".format(k, v)
+                                    for k, v in metrics_mean.items())
+        print("- Eval metrics : " + metrics_string)
+        return metrics_mean, resolution_hists
 
 
 if __name__ == '__main__':
@@ -238,6 +257,8 @@ if __name__ == '__main__':
     metrics = net.metrics
     model_dir = osp.join(os.environ['PWD'],args.ckpts)
     deltaR = 0.4
+    deltaR_dz = 10
+
 
     # Reload weights from the saved file
     restore_ckpt = osp.join(model_dir, args.restore_file + '.pth.tar')
@@ -248,7 +269,7 @@ if __name__ == '__main__':
             best_validation_loss = json.load(restore_metrics)['loss']
 
     # Evaluate
-    test_metrics, resolutions = evaluate(model, device, loss_fn, test_dl, metrics, deltaR, model_dir)
+    test_metrics, resolutions = evaluate(model, device, loss_fn, test_dl, metrics, deltaR, deltaR_dz, model_dir)
     validation_loss = test_metrics['loss']
     is_best = (validation_loss<best_validation_loss)
 
