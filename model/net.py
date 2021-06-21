@@ -54,7 +54,11 @@ def loss_fn(weights, prediction, truth, batch):
     true_py=truth[:,1]      
     METx = scatter_add(weights*px, batch)
     METy = scatter_add(weights*py, batch)
-    loss=0.5*( ( METx + true_px)**2 + ( METy + true_py)**2 ).mean()
+
+    tzero = torch.zeros(prediction.shape[0]).to('cuda')
+    BCE = nn.BCELoss()
+    # BCE checks charged particles to match puppi weight 
+    loss=0.5*( ( METx + true_px)**2 + ( METy + true_py)**2 ).mean() + 5000*BCE(torch.where(prediction[:,9]==0, tzero, weights), torch.where(prediction[:,9]==0, tzero, prediction[:,7]))
     return loss
 
 def getdot(vx, vy):

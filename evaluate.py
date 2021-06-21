@@ -20,6 +20,8 @@ from torch_geometric.utils import to_undirected
 from torch_cluster import radius_graph, knn_graph
 
 import matplotlib.pyplot as plt
+import mplhep as hep
+plt.style.use(hep.style.CMS)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--restore_file', default='best', help="name of the file in --model_dir \
@@ -82,7 +84,7 @@ def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, deltaR_dz, mod
                     })
                 
                 data = data.to(device)
-                x_cont = data.x[:,:8]
+                x_cont = data.x[:,:7]
                 x_cat = data.x[:,8:].long()
                 phi = torch.atan2(data.x[:,1], data.x[:,0])
                 etaphi = torch.cat([data.x[:,3][:,None], phi[:,None]], dim=1)
@@ -249,7 +251,7 @@ if __name__ == '__main__':
 
     # Define the model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = net.Net(8, 3).to(device)
+    model = net.Net(7, 3).to(device)
     optimizer = torch.optim.AdamW(model.parameters(),lr=0.001)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.5, patience=500, threshold=0.05)
 
@@ -273,20 +275,20 @@ if __name__ == '__main__':
     validation_loss = test_metrics['loss']
     is_best = (validation_loss<best_validation_loss)
 
-    if is_best: 
-        print('Found new best loss!') 
-        best_validation_loss=validation_loss
+    # if is_best: 
+    #     print('Found new best loss!') 
+    #     best_validation_loss=validation_loss
         
-        # Save weights
-        utils.save_checkpoint({'epoch': epoch,
-                               'state_dict': model.state_dict(),
-                               'optim_dict': optimizer.state_dict(),
-                               'sched_dict': scheduler.state_dict()},
-                              is_best=True,
-                              checkpoint=model_dir)
+    #     # Save weights
+    #     utils.save_checkpoint({'epoch': epoch,
+    #                            'state_dict': model.state_dict(),
+    #                            'optim_dict': optimizer.state_dict(),
+    #                            'sched_dict': scheduler.state_dict()},
+    #                           is_best=True,
+    #                           checkpoint=model_dir)
         
-        # Save best val metrics in a json file in the model directory
-        utils.save_dict_to_json(test_metrics, osp.join(model_dir, 'metrics_val_best.json'))
-        utils.save(resolutions, osp.join(model_dir, 'best.resolutions'))
+    #     # Save best val metrics in a json file in the model directory
+    #     utils.save_dict_to_json(test_metrics, osp.join(model_dir, 'metrics_val_best.json'))
+    #     utils.save(resolutions, osp.join(model_dir, 'best.resolutions'))
 
     utils.save(resolutions, os.path.join(model_dir, "{}.resolutions".format(args.restore_file)))

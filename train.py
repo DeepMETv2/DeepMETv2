@@ -38,7 +38,7 @@ def train(model, device, optimizer, scheduler, loss_fn, dataloader, epoch):
         for data in dataloader:
             optimizer.zero_grad()
             data = data.to(device)
-            x_cont = data.x[:,:8]
+            x_cont = data.x[:,:7]
             x_cat = data.x[:,8:].long()
             phi = torch.atan2(data.x[:,1], data.x[:,0])
             etaphi = torch.cat([data.x[:,3][:,None], phi[:,None]], dim=1)   
@@ -75,8 +75,9 @@ if __name__ == '__main__':
     print(len(train_dl), len(test_dl))
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')    
+    torch.cuda.set_per_process_memory_fraction(0.5)
     #model = net.Net(8, 3).to('cuda')
-    model = net.Net(8, 3).to(device)
+    model = net.Net(7, 3).to(device)
     optimizer = torch.optim.AdamW(model.parameters(),lr=0.001)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.5, patience=500, threshold=0.05)
     first_epoch = 0
@@ -98,7 +99,7 @@ if __name__ == '__main__':
         with open(osp.join(model_dir, 'metrics_val_best.json')) as restore_metrics:
             best_validation_loss = json.load(restore_metrics)['loss']
 
-    for epoch in range(first_epoch+1,41):
+    for epoch in range(first_epoch+1,31):
 
         print('Current best loss:', best_validation_loss)
         if '_last_lr' in scheduler.state_dict():
