@@ -57,10 +57,10 @@ class GraphMETNetwork(nn.Module):
         emb_cat = self.embed_categorical(torch.cat([emb_chrg, emb_pdg, emb_pv], dim=1))
         
         emb = self.bn_all(self.encode_all(torch.cat([emb_cat, emb_cont], dim=1)))
-                
+        
         # graph convolution for continuous variables
         for co_conv in self.conv_continuous:
-            emb = emb + co_conv[1](co_conv[0](emb, edge_index))
+            emb = emb + co_conv[1](co_conv[0](emb, knn_graph(emb, k=20, batch=batch, loop=True)))
                 
         out = self.output(emb)
         

@@ -40,16 +40,16 @@ def train(model, device, optimizer, scheduler, loss_fn, dataloader, epoch):
             data = data.to(device)
             x_cont = data.x[:,:7]
             x_cat = data.x[:,8:].long()
-            phi = torch.atan2(data.x[:,1], data.x[:,0])
-            etaphi = torch.cat([data.x[:,3][:,None], phi[:,None]], dim=1)   
-            dz = data.x[:,5] 
+            #phi = torch.atan2(data.x[:,1], data.x[:,0])
+            #etaphi = torch.cat([data.x[:,3][:,None], phi[:,None]], dim=1)   
+            #dz = data.x[:,5] 
             # NB: there is a problem right now for comparing hits at the +/- pi boundary
-            edge_index = radius_graph(etaphi, r=deltaR, batch=data.batch, loop=True, max_num_neighbors=255)
+            #edge_index = radius_graph(etaphi, r=deltaR, batch=data.batch, loop=True, max_num_neighbors=255)
             #edge_index_dz = radius_graph(dz, r=deltaR_dz, batch=data.batch, loop=True, max_num_neighbors=255)
-            tinf = (torch.ones(len(dz))*float("Inf")).to('cuda')
-            edge_index_dz = knn_graph(torch.where(data.x[:,7]!=0, dz, tinf), k=deltaR_dz, batch=data.batch, loop=True)
-            cat_edges = torch.cat([edge_index,edge_index_dz],dim=1)
-            result = model(x_cont, x_cat, cat_edges, data.batch)
+            #tinf = (torch.ones(len(dz))*float("Inf")).to('cuda')
+            #edge_index_dz = knn_graph(torch.where(data.x[:,7]!=0, dz, tinf), k=deltaR_dz, batch=data.batch, loop=True)
+            #cat_edges = torch.cat([edge_index,edge_index_dz],dim=1)
+            result = model(x_cont, x_cat, None, data.batch)
             loss = loss_fn(result, data.x, data.y, data.batch)
             loss.backward()
             optimizer.step()
