@@ -85,13 +85,13 @@ def evaluate(model, device, loss_fn, dataloader, metrics, deltaR,deltaR_dz, mode
         etaphi = torch.cat([data.x[:,3][:,None], phi[:,None]], dim=1)
         # NB: there is a problem right now for comparing hits at the +/- pi boundary 
         edge_index = radius_graph(etaphi, r=deltaR, batch=data.batch, loop=True, max_num_neighbors=255)
-        tinf = (torch.ones(len(data.x[:,5]))*float("Inf")).to('cuda')
-        edge_index_dz = radius_graph(torch.where(data.x[:,7]!=0, data.x[:,5], tinf), r=deltaR_dz, batch=data.batch, loop=True, max_num_neighbors=255)
+        #tinf = (torch.ones(len(data.x[:,5]))*float("Inf")).to('cuda')
+        #edge_index_dz = radius_graph(torch.where(data.x[:,7]!=0, data.x[:,5], tinf), r=deltaR_dz, batch=data.batch, loop=True, max_num_neighbors=127)
         # compute model output
         tic = time.time()
-        cat_edges = torch.cat([edge_index,edge_index_dz],dim=1)
-        result = model(x_cont, x_cat, cat_edges, data.batch)
-        #result = model(x_cont, x_cat, edge_index, data.batch)
+        #cat_edges = torch.cat([edge_index,edge_index_dz],dim=1)
+        #result = model(x_cont, x_cat, cat_edges, data.batch)
+        result = model(x_cont, x_cat, edge_index, data.batch)
         toc = time.time()
         #print('Event processing speed', toc - tic)
         loss = loss_fn(result, data.x, data.y, data.batch)
@@ -169,7 +169,7 @@ if __name__ == '__main__':
 
     # fetch dataloaders
     dataloaders = data_loader.fetch_dataloader(data_dir=osp.join(os.environ['PWD'],args.data), 
-                                               batch_size=60, 
+                                               batch_size=40, 
                                                validation_split=0.2)
     test_dl = dataloaders['test']
 
@@ -183,7 +183,7 @@ if __name__ == '__main__':
     metrics = net.metrics
     model_dir = osp.join(os.environ['PWD'],args.ckpts)
     deltaR = 0.4
-    deltaR_dz = 0.5
+    deltaR_dz = 0.3
 
     # Reload weights from the saved file
     restore_ckpt = osp.join(model_dir, args.restore_file + '.pth.tar')
@@ -197,19 +197,19 @@ if __name__ == '__main__':
     test_metrics, resolutions = evaluate(model, device, loss_fn, test_dl, metrics, deltaR,deltaR_dz, model_dir)
     validation_loss = test_metrics['loss']
     is_best = (validation_loss<best_validation_loss)
-
+    is_best = True
     if is_best: 
         print('Found new best loss!') 
         best_validation_loss=validation_loss
         # Save weights
-        utils.save_checkpoint({'epoch': epoch,
-                               'state_dict': model.state_dict(),
-                               'optim_dict': optimizer.state_dict(),
-                               'sched_dict': scheduler.state_dict()},
-                              is_best=True,
-                              checkpoint=model_dir)
+        #utils.save_checkpoint({'epoch': epoch,
+        #                       'state_dict': model.state_dict(),
+        #                       'optim_dict': optimizer.state_dict(),
+        #                       'sched_dict': scheduler.state_dict()},
+        #                      is_best=True,
+        #                      checkpoint=model_dir)
         # Save best val metrics in a json file in the model directory
-        utils.save_dict_to_json(test_metrics, osp.join(model_dir, 'metrics_val_best.json'))
-        utils.save(resolutions, osp.join(model_dir, 'best.resolutions'))
+        #utils.save_dict_to_json(test_metrics, osp.join(model_dir, 'metrics_val_best.json'))
+        #utils.save(resolutions, osp.join(model_dir, 'best.resolutions'))
 
     utils.save(resolutions, os.path.join(model_dir, "{}.resolutions".format(args.restore_file)))

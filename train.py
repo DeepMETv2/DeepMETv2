@@ -43,12 +43,27 @@ def train(model, device, optimizer, scheduler, loss_fn, dataloader, epoch):
             x_cat = data.x[:,8:].long()
             phi = torch.atan2(data.x[:,1], data.x[:,0])
             etaphi = torch.cat([data.x[:,3][:,None], phi[:,None]], dim=1)        
+            #add 1D radius
+            #dz = data.x[:,5]
+            #print("before dz[0]=float('Inf') ",dz[0])
+            #print("before dz[0]=float('Inf') ",data.x[0,5])
+            #dz[0]=float('Inf')
+            #print("after dz[0]=float('Inf') ",dz[0])
+            #print("after dz[0]=float('Inf') ",data.x[0,5])
+            #data.x[torch.where(data.x[:,7]==0), 5]=float('Inf')
+            #print('dz length',dz.size()) 
+            #dzz = data.x[torch.where(data.x[:,7]!=0)]
+            #print('dzz length',dzz.size())
             # NB: there is a problem right now for comparing hits at the +/- pi boundary
             edge_index = radius_graph(etaphi, r=deltaR, batch=data.batch, loop=True, max_num_neighbors=255)
-            tinf = (torch.ones(len(data.x[:,5]))*float("Inf")).to('cuda')
-            edge_index_dz = radius_graph(torch.where(data.x[:,7]!=0, data.x[:,5], tinf), r=deltaR_dz, batch=data.batch, loop=True, max_num_neighbors=255)
-            cat_edges = torch.cat([edge_index,edge_index_dz],dim=1)
-            result = model(x_cont, x_cat, cat_edges, data.batch)
+            #tinf = (torch.ones(len(data.x[:,5]))*float("Inf")).to('cuda')
+            #edge_index_dz = radius_graph(torch.where(data.x[:,7]!=0, data.x[:,5], tinf), r=deltaR_dz, batch=data.batch, loop=True, max_num_neighbors=127)
+            #print('edge_index',edge_index[:,1])
+            #print('edge_index_dz',edge_index_dz[:,-3000])
+            #cat_edges = torch.cat([edge_index,edge_index_dz],dim=1)
+            #print('cat_edges',cat_edges[:,-200])
+            result = model(x_cont, x_cat, edge_index, data.batch)
+            #result = model(x_cont, x_cat, cat_edges, data.batch)
             loss = loss_fn(result, data.x, data.y, data.batch)
             loss.backward()
             optimizer.step()
@@ -65,7 +80,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     dataloaders = data_loader.fetch_dataloader(data_dir=osp.join(os.environ['PWD'],args.data), 
-                                               batch_size=60,
+                                               batch_size=40,
                                                validation_split=.2)
     train_dl = dataloaders['train']
     test_dl = dataloaders['test']
@@ -80,7 +95,7 @@ if __name__ == '__main__':
     first_epoch = 0
     best_validation_loss = 10e7
     deltaR = 0.4
-    deltaR_dz = 0.5
+    deltaR_dz = 0.3
 
     loss_fn = net.loss_fn
     metrics = net.metrics
@@ -100,7 +115,7 @@ if __name__ == '__main__':
         with open(osp.join(model_dir, 'metrics_val_best.json')) as restore_metrics:
             best_validation_loss = json.load(restore_metrics)['loss']
 
-    for epoch in range(first_epoch+1,101):
+    for epoch in range(first_epoch+1,51):
 
         print('Current best loss:', best_validation_loss)
         if '_last_lr' in scheduler.state_dict():

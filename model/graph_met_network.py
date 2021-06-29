@@ -30,7 +30,11 @@ class GraphMETNetwork(nn.Module):
                                         nn.ELU()
                                        )
         self.bn_all = nn.BatchNorm1d(hidden_dim)
-        
+
+        self.dense = nn.Sequential(nn.Linear(hidden_dim, 8),
+                                        nn.ELU()
+                                       )
+ 
         self.conv_continuous = nn.ModuleList()        
         for i in range(conv_depth):
             mesg = nn.Sequential(nn.Linear(2*hidden_dim, hidden_dim))
@@ -55,12 +59,14 @@ class GraphMETNetwork(nn.Module):
         emb_pdg = self.embed_pdgid(pdg_remap)
 
         emb_cat = self.embed_categorical(torch.cat([emb_chrg, emb_pdg, emb_pv], dim=1))
-        
-        emb = self.bn_all(self.encode_all(torch.cat([emb_cat, emb_cont], dim=1)))
+        #emb = self.bn_all(self.encode_all(torch.cat([emb_cat, emb_cont], dim=1)))
+        emb = self.dense( self.bn_all(self.encode_all(torch.cat([emb_cat, emb_cont], dim=1))) )
                 
         # graph convolution for continuous variables
         for co_conv in self.conv_continuous:
-            emb = emb + co_conv[1](co_conv[0](emb, edge_index))
+            #dynamic
+            emb = emb + co_conv[1](co_conv[0](emb, knn_graph(emb, k=20, batch=batch, loop=True)))
+            #emb = emb + co_conv[1](co_conv[0](emb, edge_index))
                 
         out = self.output(emb)
         
