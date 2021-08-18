@@ -30,21 +30,47 @@ class GraphMETNetwork(nn.Module):
                                         nn.ELU()
                                        )
         self.bn_all = nn.BatchNorm1d(hidden_dim)
-        
+        '''
         self.conv_continuous = nn.ModuleList()        
         for i in range(conv_depth):
             mesg = nn.Sequential(nn.Linear(2*hidden_dim, hidden_dim))
             self.conv_continuous.append(nn.ModuleList())
             self.conv_continuous[-1].append(EdgeConv(nn=mesg).jittable())
             self.conv_continuous[-1].append(nn.BatchNorm1d(hidden_dim))
+        
 
+        # create gnn with node feature vectors of hidden_dimension = continuous_dim + cat_dim 
+        '''
+        dim = 11
+
+
+        self.conv_continuous = nn.ModuleList()
+        self.conv_continuous.append(GCNConv(dim, hidden_dim))
+        for i in range(conv_depth-1):
+            self.conv_continuous.append(GCNConv(hidden_dim, hidden_dim))
+            '''
+            self.conv_continuous.append(nn.ModuleList())
+            self.conv_continuous[-1].append(GCNConv(hidden_dim, hiddem_dim))
+            self.conv_continuous[-1].append(nn.BatchNorm1d(hidden_dim))
+            '''
+        '''
+        
+        self.conv1 = GCNConv(dim, dim)
+        self.conv2 = GCNConv(dim, dim)
+    
+        self.conv_last = GCNConv(dim, 1)
+        '''
         self.output = nn.Sequential(nn.Linear(hidden_dim, hidden_dim//2),
                                     nn.ELU(),
                                     nn.Linear(hidden_dim//2, output_dim)
                                    )
+        '''
         self.pdgs = [1, 2, 11, 13, 22, 130, 211]
+        '''
 
-    def forward(self, x_cont, x_cat, edge_index, batch):
+    #def forward(self, x_cont, x_cat, edge_index, batch):
+    def forward(self, x, edge_index, batch):
+        '''
         emb_cont = self.embed_continuous(x_cont)        
         emb_chrg = self.embed_charge(x_cat[:, 1] + 1)
         emb_pv = self.embed_pv(x_cat[:, 2])
@@ -60,8 +86,27 @@ class GraphMETNetwork(nn.Module):
         
         # graph convolution for continuous variables
         for co_conv in self.conv_continuous:
-            emb = emb + co_conv[1](co_conv[0](emb, knn_graph(emb, k=20, batch=batch, loop=True)))
+            emb = co_conv[1](co_conv[0](emb, knn_graph(emb, k=10, batch=batch, loop=True)))
                 
         out = self.output(emb)
         
-        return out.squeeze(-1)
+        return out.squeeze(-1)'''
+        #print(x.shape, edge_index.shape)
+        
+        for co_conv in self.conv_continuous:
+            x = co_conv(x, edge_index)
+            x = F.relu(x)
+            x = F.dropout(x, training=self.training)
+        '''
+        x = self.conv1(x, edge_index)
+        x = F.relu(x)
+        x = F.dropout(x, training = self.training)
+        x = self.conv2(x, edge_index)
+        x = F.relu(x)
+        x = F.dropout(x, training = self.training) 
+        
+        x = self.conv_last(x, edge_index)
+        '''
+        x = self.output(x)
+
+        return x.squeeze(-1)

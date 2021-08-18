@@ -31,7 +31,10 @@ parser.add_argument('--data', default='data',
 parser.add_argument('--ckpts', default='ckpts',
                     help="Name of the ckpts folder")
 
-def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, deltaR_dz, model_dir):
+parser.add_argument('--out', default='',
+                    help="additional name info if gnn is applied to other data")
+
+def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, deltaR_dz, model_dir, out=''):
     """Evaluate the model on `num_steps` batches.
 
     Args:
@@ -86,24 +89,26 @@ def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, deltaR_dz, mod
                 data = data.to(device)
                 x_cont = data.x[:,:7]
                 x_cat = data.x[:,8:].long()
-                #phi = torch.atan2(data.x[:,1], data.x[:,0])
-                #etaphi = torch.cat([data.x[:,3][:,None], phi[:,None]], dim=1)
+                phi = torch.atan2(data.x[:,1], data.x[:,0])
+                etaphi = torch.cat([data.x[:,3][:,None], phi[:,None]], dim=1)
                 #dz = data.x[:,5]
                 # NB: there is a problem right now for comparing hits at the +/- pi boundary                                                
-                #edge_index = radius_graph(etaphi, r=deltaR, batch=data.batch, loop=True, max_num_neighbors=255)
+                edge_index = radius_graph(etaphi, r=deltaR, batch=data.batch, loop=True, max_num_neighbors=100)
+                edge_index_simple = torch.arange(len(data.x[:,1]))
+                edge_index_simple = edge_index_simple.expand(2, len(data.x[:,1])).to(device)
                 #edge_index_dz = radius_graph(dz, r=deltaR_dz, batch=data.batch, loop=True, max_num_neighbors=255)
                 #tinf = (torch.ones(len(dz))*float("Inf")).to('cuda')
                 #edge_index_dz = knn_graph(torch.where(data.x[:,7]!=0, dz, tinf), k=deltaR_dz, batch=data.batch, loop=True)
                 #cat_edges = torch.cat([edge_index,edge_index_dz],dim=1)
                 # compute model output
                 #tic = time.time()
-                result = model(x_cont, x_cat, None, data.batch)
+                result = model(data.x, edge_index=edge_index, batch=data.batch)
                 #toc = time.time()
                 #print('Event processing speed', toc - tic)
                 loss = loss_fn(result, data.x, data.y, data.batch)
 
                 # compute all metrics on this batch
-                resolutions, qT= metrics['resolution'](result, data.x, data.y, data.batch)
+                resolutions, qT = metrics['resolution'](result, data.x, data.y, data.batch)
                 for key in resolutions_arr:
                     for i in range(len(resolutions_arr[key])):
                         resolutions_arr[key][i]=np.concatenate((resolutions_arr[key][i],resolutions[key][i]))
@@ -185,7 +190,7 @@ def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, deltaR_dz, mod
         plt.xlabel(r'$q_{T}$ [GeV]')
         plt.ylabel(r'$\sigma (u_{\perp})$ [GeV]')
         plt.legend()
-        plt.savefig(model_dir+'/resol_perp.png')
+        plt.savefig(model_dir+'/'+out+'resol_perp.png')
         plt.clf()
         plt.close()
 
@@ -194,7 +199,7 @@ def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, deltaR_dz, mod
         plt.xlabel(r'$q_{T}$ [GeV]')
         plt.ylabel(r'Scaled $\sigma (u_{\perp})$ [GeV]')
         plt.legend()
-        plt.savefig(model_dir+'/resol_perp_scaled.png')
+        plt.savefig(model_dir+'/'+out+'resol_perp_scaled.png')
         plt.clf()
         plt.close()
 
@@ -203,7 +208,7 @@ def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, deltaR_dz, mod
         plt.xlabel(r'$q_{T}$ [GeV]')
         plt.ylabel(r'$\sigma (u_{\parallel})$ [GeV]')
         plt.legend()
-        plt.savefig(model_dir+'/resol_parallel.png')
+        plt.savefig(model_dir+'/'+out+'resol_parallel.png')
         plt.clf()
         plt.close()
 
@@ -212,7 +217,7 @@ def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, deltaR_dz, mod
         plt.xlabel(r'$q_{T}$ [GeV]')
         plt.ylabel(r'Scaled $\sigma (u_{\parallel})$ [GeV]')
         plt.legend()
-        plt.savefig(model_dir+'/resol_parallel_scaled.png')
+        plt.savefig(model_dir+'/'+out+'resol_parallel_scaled.png')
         plt.clf()
         plt.close()
 
@@ -222,7 +227,7 @@ def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, deltaR_dz, mod
         plt.xlabel(r'$q_{T}$ [GeV]')
         plt.ylabel(r'Response $-\frac{<u_{\parallel}>}{<q_{T}>}$')
         plt.legend()
-        plt.savefig(model_dir+'/response_parallel.png')
+        plt.savefig(model_dir+'/'+out+'response_parallel.png')
         plt.clf()
         plt.close()
 
@@ -271,7 +276,7 @@ if __name__ == '__main__':
             best_validation_loss = json.load(restore_metrics)['loss']
 
     # Evaluate
-    test_metrics, resolutions = evaluate(model, device, loss_fn, test_dl, metrics, deltaR, deltaR_dz, model_dir)
+    test_metrics, resolutions = evaluate(model, device, loss_fn, test_dl, metrics, deltaR, deltaR_dz, model_dir, args.out)
     validation_loss = test_metrics['loss']
     is_best = (validation_loss<best_validation_loss)
 

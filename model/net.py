@@ -40,11 +40,14 @@ class Net(nn.Module):
         super(Net, self).__init__()
         self.graphnet = GraphMETNetwork(continuous_dim, categorical_dim,
                                         output_dim=1, hidden_dim=32,
-                                        conv_depth=2)
+                                        conv_depth=4)
     
-    def forward(self, x_cont, x_cat, edge_index, batch):
-        weights = self.graphnet(x_cont, x_cat, edge_index, batch)
+    # def forward(self, x_cont, x_cat, edge_index, batch):
+    def forward(self, x, edge_index, batch):
+        # weights = self.graphnet(x_cont, x_cat, edge_index, batch)
+        weights = self.graphnet(x, edge_index, batch)
         return torch.sigmoid(weights)
+        #return weights
 
 def loss_fn(weights, prediction, truth, batch):
 
@@ -58,7 +61,7 @@ def loss_fn(weights, prediction, truth, batch):
     tzero = torch.zeros(prediction.shape[0]).to('cuda')
     BCE = nn.BCELoss()
     # BCE checks charged particles to match puppi weight 
-    loss=0.5*( ( METx + true_px)**2 + ( METy + true_py)**2 ).mean() + 5000*BCE(torch.where(prediction[:,9]==0, tzero, weights), torch.where(prediction[:,9]==0, tzero, prediction[:,7]))
+    loss=0.5*( ( METx + true_px)**2 + ( METy + true_py)**2 ).mean() #+ 5000*BCE(torch.where(prediction[:,9]==0, tzero, weights), torch.where(prediction[:,9]==0, tzero, prediction[:,7]))
     return loss
 
 def getdot(vx, vy):
@@ -92,6 +95,8 @@ def u_perp_par_loss(weights, prediction, truth, batch):
 def resolution(weights, prediction, truth, batch):
     
     def getdot(vx, vy):
+        #print("getdot: ", vx, vy)
+        #print(vx.size(), vy.size())
         return torch.einsum('bi,bi->b',vx,vy)
     def getscale(vx):
         return torch.sqrt(getdot(vx,vx))
@@ -128,8 +133,12 @@ def resolution(weights, prediction, truth, batch):
     
     px=prediction[:,0]
     py=prediction[:,1]
+    #print(px, py)
+    #print(weights)
+    #print("len px, py, weights: ", (px.size()), (py.size()), (weights.size()))
     METx = scatter_add(weights*px, batch)
     METy = scatter_add(weights*py, batch)
+    #print("Metx, Mety: ", METx.size(), METy.size())
     # predicted MET/qT
     v_MET=torch.stack((METx, METy),dim=1)
 
