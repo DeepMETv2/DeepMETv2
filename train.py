@@ -28,6 +28,8 @@ parser.add_argument('--data', default='data',
                     help="Name of the data folder")
 parser.add_argument('--ckpts', default='ckpts',
                     help="Name of the ckpts folder")
+parser.add_argument('--mode', default='simple',
+                    help="simple for simple fixed size GNN, fix for fixed size GNN with DeepMET structure, dyn for dynamical GNN")
 
 
 def train(model, device, optimizer, scheduler, loss_fn, dataloader, epoch):
@@ -38,8 +40,6 @@ def train(model, device, optimizer, scheduler, loss_fn, dataloader, epoch):
         for data in dataloader:
             optimizer.zero_grad()
             data = data.to(device)
-            x_cont = data.x[:,:7]
-            x_cat = data.x[:,8:].long()
             phi = torch.atan2(data.x[:,1], data.x[:,0])
             etaphi = torch.cat([data.x[:,3][:,None], phi[:,None]], dim=1)   
             #dz = data.x[:,5] 
@@ -55,6 +55,7 @@ def train(model, device, optimizer, scheduler, loss_fn, dataloader, epoch):
 
             # result = model(x_cont, x_cat, None, data.batch)
             result = model(data.x, edge_index=edge_index, batch=data.batch)
+            #print(data.x.size())
             # --
             loss = loss_fn(result, data.x, data.y, data.batch)
             loss.backward()
@@ -73,8 +74,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     dataloaders = data_loader.fetch_dataloader(data_dir=osp.join(os.environ['PWD'],args.data), 
-                                               batch_size=6,
-                                               validation_split=.2) # batch size decreased from 60
+                                               batch_size=60,
+                                               validation_split=.2)
     train_dl = dataloaders['train']
     test_dl = dataloaders['test']
 
@@ -83,7 +84,7 @@ if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')    
     torch.cuda.set_per_process_memory_fraction(0.5)
     #model = net.Net(8, 3).to('cuda')
-    model = net.Net(7, 3).to(device)
+    model = net.Net(7, 3, args.mode).to(device)
     optimizer = torch.optim.AdamW(model.parameters(),lr=0.001)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.5, patience=500, threshold=0.05)
     first_epoch = 0

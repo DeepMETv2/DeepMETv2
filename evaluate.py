@@ -30,6 +30,8 @@ parser.add_argument('--data', default='data',
                     help="Name of the data folder")
 parser.add_argument('--ckpts', default='ckpts',
                     help="Name of the ckpts folder")
+parser.add_argument('--mode', default='simple',
+                    help="simple for simple fixed size GNN, fix for fixed size GNN with DeepMET structure, dyn for dynamical GNN")
 
 parser.add_argument('--out', default='',
                     help="additional name info if gnn is applied to other data")
@@ -256,7 +258,7 @@ if __name__ == '__main__':
 
     # Define the model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = net.Net(7, 3).to(device)
+    model = net.Net(7, 3, args.mode).to(device)
     optimizer = torch.optim.AdamW(model.parameters(),lr=0.001)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.5, patience=500, threshold=0.05)
 

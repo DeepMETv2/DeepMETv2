@@ -1,0 +1,8 @@
+fixed size net with DeepMET-structure
+Epochs: 22
+edge_index: deltaR<0.4 (20nbs)
+batch_size: 60
+learning rate: 0.001
+training time per Epoch: about 10min 30s
+Training loss: about 1684
+eval loss: about 1688

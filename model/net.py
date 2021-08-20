@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch_scatter import scatter_add
 from model.dynamic_reduction_network import DynamicReductionNetwork
-from model.graph_met_network import GraphMETNetwork
+from model.graph_met_network import GraphMETNetwork_fix, GraphMETNetwork_dyn, GraphMETNetwork_simple
 
 '''
 class Net(nn.Module):
@@ -36,11 +36,24 @@ class Net(nn.Module):
         return output
 '''
 class Net(nn.Module):
-    def __init__(self, continuous_dim, categorical_dim):
+    def __init__(self, continuous_dim, categorical_dim, mode="fix"):
         super(Net, self).__init__()
-        self.graphnet = GraphMETNetwork(continuous_dim, categorical_dim,
+        if mode=="simple":
+            self.graphnet = GraphMETNetwork_simple(continuous_dim, categorical_dim,
                                         output_dim=1, hidden_dim=32,
                                         conv_depth=4)
+
+        elif mode=="fix":
+            self.graphnet = GraphMETNetwork_fix(continuous_dim, categorical_dim,
+                                        output_dim=1, hidden_dim=32,
+                                        conv_depth=4)
+
+        elif mode=="dyn":
+            self.graphnet = GraphMETNetwork_dyn(continuous_dim, categorical_dim,
+                                        output_dim=1, hidden_dim=32,
+                                        conv_depth=4)
+        
+        else: print("Error: please check if mode is fix or dyn")
     
     # def forward(self, x_cont, x_cat, edge_index, batch):
     def forward(self, x, edge_index, batch):
