@@ -95,7 +95,7 @@ def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, deltaR_dz, mod
                 etaphi = torch.cat([data.x[:,3][:,None], phi[:,None]], dim=1)
                 #dz = data.x[:,5]
                 # NB: there is a problem right now for comparing hits at the +/- pi boundary                                                
-                edge_index = radius_graph(etaphi, r=deltaR, batch=data.batch, loop=True, max_num_neighbors=100)
+                edge_index = radius_graph(etaphi, r=deltaR, batch=data.batch, loop=True, max_num_neighbors=500)
                 edge_index_simple = torch.arange(len(data.x[:,1]))
                 edge_index_simple = edge_index_simple.expand(2, len(data.x[:,1])).to(device)
                 #edge_index_dz = radius_graph(dz, r=deltaR_dz, batch=data.batch, loop=True, max_num_neighbors=255)

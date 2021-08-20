@@ -44,7 +44,7 @@ def train(model, device, optimizer, scheduler, loss_fn, dataloader, epoch):
             etaphi = torch.cat([data.x[:,3][:,None], phi[:,None]], dim=1)   
             #dz = data.x[:,5] 
             # NB: there is a problem right now for comparing hits at the +/- pi boundary
-            edge_index = radius_graph(etaphi, r=deltaR, batch=data.batch, loop=True, max_num_neighbors=100)
+            edge_index = radius_graph(etaphi, r=deltaR, batch=data.batch, loop=True, max_num_neighbors=500)
             edge_index_simple = torch.arange(len(data.x[:,1]))
             edge_index_simple = edge_index_simple.expand(2, len(data.x[:,1])).to(device)
             #print(edge_index_simple)
