@@ -5,7 +5,10 @@ import os.path as osp
 import os
 import shutil
 
+from numpy import pi
+
 import torch
+#from torch_cluster import radius
 
 class RunningAverage():
     """A simple class that maintains the running average of a quantity
@@ -99,3 +102,23 @@ def load_checkpoint(checkpoint, model, optimizer=None, scheduler=None):
         scheduler.load_state_dict(checkpoint['sched_dict'])
 
     return checkpoint
+'''
+def radius_graph_v2(etaphi, r , batch=None, loop=False, max_num_neighbors=32, flow='source_to_target', device='cuda'): # Problem: Max number is exceeded, this is incredibly slow
+    etaphi_2pi = etaphi + torch.tensor([0,2*pi]).to(device)
+
+    row, col = radius(etaphi, etaphi, r, batch, batch, max_num_neighbors + 1)
+    row1, col1 = radius(etaphi, etaphi_2pi, r, batch, batch, max_num_neighbors +1)
+
+    #row = torch.cat((row, row1), 0)
+    #col = torch.cat((col, col1), 0)
+
+    assert flow in ['source_to_target', 'target_to_source']
+    row, col = (col, row) if flow == 'source_to_target' else (row, col)
+    if not loop:
+        mask = row != col
+        row, col = row[mask], col[mask]
+    edge_index = torch.stack([row,col], dim=0)
+    #edge_index = torch.unique(edge_index, dim=0)
+    
+    return edge_index
+'''

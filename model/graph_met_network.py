@@ -46,7 +46,7 @@ class GraphMETNetwork_dyn(nn.Module):
         
         self.pdgs = [1, 2, 11, 13, 22, 130, 211]
         
-
+    
     def forward(self, x, edge_index, batch):
         
         x_cont = x[:,:7]
@@ -68,11 +68,11 @@ class GraphMETNetwork_dyn(nn.Module):
         # graph convolution for continuous variables
         for co_conv in self.conv_continuous:
             emb = co_conv[1](co_conv[0](emb, knn_graph(emb, k=10, batch=batch, loop=True)))
-                
+
         out = self.output(emb)
         
         return out.squeeze(-1)
-
+    
 
 
 class GraphMETNetwork_fix(nn.Module):

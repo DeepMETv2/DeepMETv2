@@ -36,7 +36,7 @@ parser.add_argument('--mode', default='simple',
 parser.add_argument('--out', default='',
                     help="additional name info if gnn is applied to other data")
 
-def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, deltaR_dz, model_dir, out=''):
+def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, deltaR_dz, model_dir, out='', mode='fix'):
     """Evaluate the model on `num_steps` batches.
 
     Args:
@@ -91,19 +91,29 @@ def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, deltaR_dz, mod
                 data = data.to(device)
                 x_cont = data.x[:,:7]
                 x_cat = data.x[:,8:].long()
-                phi = torch.atan2(data.x[:,1], data.x[:,0])
-                etaphi = torch.cat([data.x[:,3][:,None], phi[:,None]], dim=1)
+
                 #dz = data.x[:,5]
                 # NB: there is a problem right now for comparing hits at the +/- pi boundary                                                
-                edge_index = radius_graph(etaphi, r=deltaR, batch=data.batch, loop=True, max_num_neighbors=500)
-                edge_index_simple = torch.arange(len(data.x[:,1]))
-                edge_index_simple = edge_index_simple.expand(2, len(data.x[:,1])).to(device)
+                #edge_index_phi = utils.radius_graph_v2(etaphi, r=deltaR, batch=data.batch, loop=True, max_num_neighbors=10, device=device)
+
                 #edge_index_dz = radius_graph(dz, r=deltaR_dz, batch=data.batch, loop=True, max_num_neighbors=255)
                 #tinf = (torch.ones(len(dz))*float("Inf")).to('cuda')
                 #edge_index_dz = knn_graph(torch.where(data.x[:,7]!=0, dz, tinf), k=deltaR_dz, batch=data.batch, loop=True)
                 #cat_edges = torch.cat([edge_index,edge_index_dz],dim=1)
                 # compute model output
                 #tic = time.time()
+
+                if mode=="dyn": edge_index = None
+                elif mode=="simple": 
+                    edge_index = edge_index_simple
+                    edge_index_simple = torch.arange(len(data.x[:,1]))
+                    edge_index = edge_index_simple.expand(2, len(data.x[:,1])).to(device)
+                elif mode=="fix": 
+                    phi = torch.atan2(data.x[:,1], data.x[:,0])
+                    etaphi = torch.cat([data.x[:,3][:,None], phi[:,None]], dim=1)
+                    edge_index = radius_graph(etaphi, r=deltaR, batch=data.batch, loop=True, max_num_neighbors=500)
+                else: print("Error: You chose non existing mode")
+
                 result = model(data.x, edge_index=edge_index, batch=data.batch)
                 #toc = time.time()
                 #print('Event processing speed', toc - tic)
@@ -252,7 +262,7 @@ if __name__ == '__main__':
 
     # fetch dataloaders
     dataloaders = data_loader.fetch_dataloader(data_dir=osp.join(os.environ['PWD'],args.data), 
-                                               batch_size=60, 
+                                               batch_size=10, 
                                                validation_split=.2)
     test_dl = dataloaders['test']
 

@@ -55,7 +55,7 @@ class Net(nn.Module):
         
         else: print("Error: please check if mode is fix or dyn")
     
-    # def forward(self, x_cont, x_cat, edge_index, batch):
+    #def forward(self, x_cont, x_cat, edge_index, batch):
     def forward(self, x, edge_index, batch):
         # weights = self.graphnet(x_cont, x_cat, edge_index, batch)
         weights = self.graphnet(x, edge_index, batch)

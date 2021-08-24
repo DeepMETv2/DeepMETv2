@@ -32,7 +32,7 @@ parser.add_argument('--mode', default='simple',
                     help="simple for simple fixed size GNN, fix for fixed size GNN with DeepMET structure, dyn for dynamical GNN")
 
 
-def train(model, device, optimizer, scheduler, loss_fn, dataloader, epoch):
+def train(model, device, optimizer, scheduler, loss_fn, dataloader, epoch, mode):
     model.train()
     loss_avg_arr = []
     loss_avg = utils.RunningAverage()
@@ -40,20 +40,28 @@ def train(model, device, optimizer, scheduler, loss_fn, dataloader, epoch):
         for data in dataloader:
             optimizer.zero_grad()
             data = data.to(device)
-            phi = torch.atan2(data.x[:,1], data.x[:,0])
-            etaphi = torch.cat([data.x[:,3][:,None], phi[:,None]], dim=1)   
+  
             #dz = data.x[:,5] 
             # NB: there is a problem right now for comparing hits at the +/- pi boundary
-            edge_index = radius_graph(etaphi, r=deltaR, batch=data.batch, loop=True, max_num_neighbors=500)
-            edge_index_simple = torch.arange(len(data.x[:,1]))
-            edge_index_simple = edge_index_simple.expand(2, len(data.x[:,1])).to(device)
+            #edge_index_phi = utils.radius_graph_v2(etaphi, r=deltaR, batch=data.batch, loop=True, max_num_neighbors=10, device=device)
             #print(edge_index_simple)
             #edge_index_dz = radius_graph(dz, r=deltaR_dz, batch=data.batch, loop=True, max_num_neighbors=255)
             #tinf = (torch.ones(len(dz))*float("Inf")).to('cuda')
             #edge_index_dz = knn_graph(torch.where(data.x[:,7]!=0, dz, tinf), k=deltaR_dz, batch=data.batch, loop=True)
             #cat_edges = torch.cat([edge_index,edge_index_dz],dim=1)
 
+            if mode=="dyn": edge_index = None
+            elif mode=="simple": 
+                edge_index_simple = torch.arange(len(data.x[:,1]))
+                edge_index = edge_index_simple.expand(2, len(data.x[:,1])).to(device)
+            elif mode=="fix":
+                phi = torch.atan2(data.x[:,1], data.x[:,0])
+                etaphi = torch.cat([data.x[:,3][:,None], phi[:,None]], dim=1) 
+                edge_index = radius_graph(etaphi, r=deltaR, batch=data.batch, loop=True, max_num_neighbors=500)
+            else: print("Error: You chose non existing mode")
+
             # result = model(x_cont, x_cat, None, data.batch)
+
             result = model(data.x, edge_index=edge_index, batch=data.batch)
             #print(data.x.size())
             # --
@@ -74,14 +82,15 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     dataloaders = data_loader.fetch_dataloader(data_dir=osp.join(os.environ['PWD'],args.data), 
-                                               batch_size=60,
+                                               batch_size=120,
                                                validation_split=.2)
     train_dl = dataloaders['train']
     test_dl = dataloaders['test']
 
     print(len(train_dl), len(test_dl))
 
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')    
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') 
+    print(device)   
     torch.cuda.set_per_process_memory_fraction(0.5)
     #model = net.Net(8, 3).to('cuda')
     model = net.Net(7, 3, args.mode).to(device)
@@ -100,6 +109,7 @@ if __name__ == '__main__':
     # reload weights from restore_file if specified
     if args.restore_file is not None:
         restore_ckpt = osp.join(model_dir, args.restore_file + '.pth.tar')
+        #print(restore_ckpt)
         ckpt = utils.load_checkpoint(restore_ckpt, model, optimizer, scheduler)
         first_epoch = ckpt['epoch']
         print('Restarting training from epoch',first_epoch)
@@ -113,7 +123,7 @@ if __name__ == '__main__':
             print('Learning rate:', scheduler.state_dict()['_last_lr'][0])
 
         # compute number of batches in one epoch (one full pass over the training set)
-        train(model, device, optimizer, scheduler, loss_fn, train_dl, epoch)
+        train(model, device, optimizer, scheduler, loss_fn, train_dl, epoch, args.mode)
 
         # Save weights
         utils.save_checkpoint({'epoch': epoch,
@@ -124,7 +134,7 @@ if __name__ == '__main__':
                               checkpoint=model_dir)
 
         # Evaluate for one epoch on validation set
-        test_metrics, resolutions = evaluate(model, device, loss_fn, test_dl, metrics, deltaR, deltaR_dz, model_dir)
+        test_metrics, resolutions = evaluate(model, device, loss_fn, test_dl, metrics, deltaR, deltaR_dz, model_dir, args.mode)
 
         validation_loss = test_metrics['loss']
         is_best = (validation_loss<=best_validation_loss)
