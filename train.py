@@ -18,6 +18,9 @@ import model.net as net
 import model.data_loader as data_loader
 from evaluate import evaluate
 import warnings
+
+import matplotlib.pyplot as plt
+
 warnings.simplefilter('ignore')
 
 parser = argparse.ArgumentParser()
@@ -40,7 +43,7 @@ def train(model, device, optimizer, scheduler, loss_fn, dataloader, epoch, mode)
         for data in dataloader:
             optimizer.zero_grad()
             data = data.to(device)
-  
+            
             #dz = data.x[:,5] 
             # NB: there is a problem right now for comparing hits at the +/- pi boundary
             #edge_index_phi = utils.radius_graph_v2(etaphi, r=deltaR, batch=data.batch, loop=True, max_num_neighbors=10, device=device)
@@ -75,8 +78,11 @@ def train(model, device, optimizer, scheduler, loss_fn, dataloader, epoch, mode)
             t.update()
             #torch.cuda.empty_cache()
 
-    scheduler.step(np.mean(loss_avg_arr))
-    print('Training epoch: {:02d}, MSE: {:.4f}'.format(epoch, np.mean(loss_avg_arr)))
+    mean_loss = np.mean(loss_avg_arr)
+    scheduler.step(mean_loss)
+    print('Training epoch: {:02d}, MSE: {:.4f}'.format(epoch, mean_loss))
+    return mean_loss
+    
 
 if __name__ == '__main__':
     args = parser.parse_args()
@@ -88,7 +94,7 @@ if __name__ == '__main__':
     test_dl = dataloaders['test']
 
     print(len(train_dl), len(test_dl))
-
+    
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') 
     print(device)   
     torch.cuda.set_per_process_memory_fraction(0.5)
@@ -115,6 +121,8 @@ if __name__ == '__main__':
         print('Restarting training from epoch',first_epoch)
         with open(osp.join(model_dir, 'metrics_val_best.json')) as restore_metrics:
             best_validation_loss = json.load(restore_metrics)['loss']
+    
+    output_handler = utils.output_handler()
 
     for epoch in range(first_epoch+1,31):
 
@@ -123,7 +131,7 @@ if __name__ == '__main__':
             print('Learning rate:', scheduler.state_dict()['_last_lr'][0])
 
         # compute number of batches in one epoch (one full pass over the training set)
-        train(model, device, optimizer, scheduler, loss_fn, train_dl, epoch, args.mode)
+        training_loss = train(model, device, optimizer, scheduler, loss_fn, train_dl, epoch, args.mode)
 
         # Save weights
         utils.save_checkpoint({'epoch': epoch,
@@ -134,9 +142,10 @@ if __name__ == '__main__':
                               checkpoint=model_dir)
 
         # Evaluate for one epoch on validation set
-        test_metrics, resolutions = evaluate(model, device, loss_fn, test_dl, metrics, deltaR, deltaR_dz, model_dir, args.mode)
+        test_metrics, resolutions = evaluate(model, device, loss_fn, test_dl, metrics, deltaR, deltaR_dz, model_dir, out='', mode=args.mode)
 
         validation_loss = test_metrics['loss']
+
         is_best = (validation_loss<=best_validation_loss)
 
         # If best_eval, best_save_path
@@ -158,4 +167,10 @@ if __name__ == '__main__':
 
         utils.save_dict_to_json(test_metrics, osp.join(model_dir, 'metrics_val_last.json'))
         utils.save(resolutions, osp.join(model_dir, 'last.resolutions'))
+
+
+
+        output_handler.add_epoch(epoch, training_loss, validation_loss)
+        output_handler.save_loss(str(model_dir))
+        output_handler.plot_loss(str(model_dir))
 

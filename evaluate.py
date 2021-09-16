@@ -262,7 +262,7 @@ if __name__ == '__main__':
 
     # fetch dataloaders
     dataloaders = data_loader.fetch_dataloader(data_dir=osp.join(os.environ['PWD'],args.data), 
-                                               batch_size=10, 
+                                               batch_size=50, 
                                                validation_split=.2)
     test_dl = dataloaders['test']
 

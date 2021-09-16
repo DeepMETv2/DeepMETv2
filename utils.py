@@ -6,9 +6,11 @@ import os
 import shutil
 
 from numpy import pi
+import numpy as np
+import matplotlib.pyplot as plt
 
 import torch
-#from torch_cluster import radius
+from torch_cluster import radius
 
 class RunningAverage():
     """A simple class that maintains the running average of a quantity
@@ -102,23 +104,38 @@ def load_checkpoint(checkpoint, model, optimizer=None, scheduler=None):
         scheduler.load_state_dict(checkpoint['sched_dict'])
 
     return checkpoint
-'''
-def radius_graph_v2(etaphi, r , batch=None, loop=False, max_num_neighbors=32, flow='source_to_target', device='cuda'): # Problem: Max number is exceeded, this is incredibly slow
-    etaphi_2pi = etaphi + torch.tensor([0,2*pi]).to(device)
 
-    row, col = radius(etaphi, etaphi, r, batch, batch, max_num_neighbors + 1)
-    row1, col1 = radius(etaphi, etaphi_2pi, r, batch, batch, max_num_neighbors +1)
 
-    #row = torch.cat((row, row1), 0)
-    #col = torch.cat((col, col1), 0)
+class output_handler():
+    '''
+    A class that handles usefule information, i.e.
+        - loss function values
+        - Hyperparameters
 
-    assert flow in ['source_to_target', 'target_to_source']
-    row, col = (col, row) if flow == 'source_to_target' else (row, col)
-    if not loop:
-        mask = row != col
-        row, col = row[mask], col[mask]
-    edge_index = torch.stack([row,col], dim=0)
-    #edge_index = torch.unique(edge_index, dim=0)
-    
-    return edge_index
-'''
+    '''
+    def __init__(self):
+        self.epoch = []
+        self.train_loss = []
+        self.eval_loss  = []
+        self.hyper_pars = []
+
+    def add_info(self, info):
+        self.hyper_pars.append(info)
+
+    def save_infos(self, checkpoint):
+        np.savetxt(checkpoint + "/hyper_params.txt", self.hyper_pars)
+
+    def add_epoch(self, epoch, train, eval):
+        self.epoch.append(epoch)
+        self.train_loss.append(train)
+        self.eval_loss.append(eval)
+
+    def save_loss(self, checkpoint):
+        to_save = np.array([self.epoch, self.train_loss, self.eval_loss]).T
+        np.savetxt(checkpoint + "/loss.txt", to_save, delimiter=",", header="epoch, train loss, evaluation loss",fmt='%s')
+
+    def plot_loss(self, checkpoint):
+        plt.plot(self.epoch, self.train_loss, label="training loss")
+        plt.plot(self.epoch, self.eval_loss, label="evaluation loss")
+        plt.legend()
+        plt.savefig(checkpoint + "/loss.pdf")
