@@ -1,0 +1,68 @@
+# This config contains the essential (previously) hard-coded values, that can be changed
+# in train.py
+train:
+    batch_size: 120
+    validation_split: 0.2
+
+    continuous_dim: 7
+    categorical_dim: 3
+
+    learning_rate: 0.001
+
+    # scheduler: ReduceLROnPlateau
+    factor: 0.5
+    patience: 500
+    threshold: 0.05
+    
+    # edge_index: radius_graph
+    deltaR: 0.4
+    max_num_neighbors: 500
+    
+    
+# net.py
+net:
+    output_dim: 1
+    hidden_dim: 32
+    conv_depth: 4
+    
+
+# graph_met_network.py
+graph_met_network:
+    # for knn_graph
+    k: 10
+
+
+# TRAINING PARAMETERS
+trained_epochs: []
+train_loss: []
+eval_loss: []
+
+
+# variables and functions that are not changed often -> therefore you have to change them manually both: Here and in the python file
+# in train.py
+
+type_of_net: 
+    update: GCNConv
+    edge_index: radius_graph
+    Embedding: True
+    inputs: ["pX", "pY", "pT", "eta", "d0", "dz", "mass", "puppiWeight", "pdgId", "charge", "fromPV"]
+    continuous_dim: 7
+    categorical_dim: 3
+
+# training
+trained_epochs: []
+train_loss: []
+eval_loss: []
+loss: MSE
+
+
+ 
+ReduceLROnPlateau:
+    factor: 0.5
+    patience: 500
+    threshold: 0.05
+
+
+
+GCNConv:
+
