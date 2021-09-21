@@ -71,7 +71,6 @@ class METDataset(Dataset):
             x = np.nan_to_num(x)
             x = np.clip(x, -5000., 5000.)
             assert not np.any(np.isnan(x))
-            #x = npzfile['arr_0'][:,:4].astype(np.float32)
             edge_index = torch.empty((2,0), dtype=torch.long)
             y = npzfile['arr_1'].astype(np.float32)[None]
             outdata = Data(x=torch.from_numpy(x),

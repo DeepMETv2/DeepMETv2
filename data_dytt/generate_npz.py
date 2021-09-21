@@ -20,7 +20,6 @@ def DeltaR2(eta1, phi1, eta2, phi2):
 
 
 def future_savez(i, tot, nfile):
-    #event = events_selected[i]
     muons = events_selected.Muon[events_selected.Muon.istight]
     electrons = events_selected.Electron[events_selected.Electron.istight]
     leptons = []
@@ -31,12 +30,10 @@ def future_savez(i, tot, nfile):
             leptons_px += muons.pt[i][ilep] * np.cos(muons.phi[i][ilep])
             leptons_py += muons.pt[i][ilep] * np.sin(muons.phi[i][ilep])
             leptons.append(muons[i][ilep])
-        #else:
         if ilep < electrons[i].size:
             leptons_px += electrons.pt[i][ilep] * np.cos(electrons.phi[i][ilep])
             leptons_py += electrons.pt[i][ilep] * np.sin(electrons.phi[i][ilep])
             leptons.append(electrons[i][ilep])
-    #print(leptons_px, leptons_py, muons_selected[i].size, electrons_selected[i].size)
 
     genmet_list = [
         events_selected.GenMET.pt[i] * np.cos(events_selected.GenMET.phi[i]) + leptons_px,
@@ -112,17 +109,15 @@ if __name__ == '__main__':
 
     parser = OptionParser()
     parser.add_option('-d', '--dataset', help='dataset', dest='dataset', default='Test')
-    parser.add_option('-s', '--startevt',type=int, default=0, help='startevt')
+    parser.add_option('-s', '--startevt',type=int, default=0, help='start event')
     parser.add_option('-f', '--file_number',type=int, default=-1, help='file number')
-    parser.add_option('-n', '--events_number',type=int, default=-1, help='events number')
+    parser.add_option('-n', '--maxNumberr',type=int, default=-1, help='events number')
     parser.add_option('--n_leptons', dest='n_leptons',
                       help='How many leptons are required in the events', default=2)
     parser.add_option('--n_leptons_subtract', dest='n_leptons_subtract',
                       help='How many leptons to be subtracted from the Candidates list. Can not be larger than the n_leptons', default=2)
 
     (options, args) = parser.parse_args()
-    dataset=options.dataset
-
     assert options.n_leptons >= options.n_leptons_subtract, "n_leptons_subtract can not be larger than n_leptons"
     datasetsname = {
         "dy": ['GraphMET_drop_trackinfocut/DYJetsToLL_M-50_TuneCP5_13TeV-amcatnloFXFX-pythia8/NanoAOD_0125/210227_040343/',10],
@@ -131,8 +126,8 @@ if __name__ == '__main__':
     dataset=options.dataset
     tot=0
     tot_target=1
-    if(options.events_number>tot_target):
-        tot_target=options.events_number
+    if(options.maxNumberr>tot_target):
+        tot_target=options.maxNumberr
     start_n=0
     if(options.startevt > 0):
         start_n=options.startevt
@@ -173,8 +168,6 @@ if __name__ == '__main__':
                 if(tot>start_n):
                     future_savez(j, tot, options.file_number)
         print("finished")
-
-
 
 
     

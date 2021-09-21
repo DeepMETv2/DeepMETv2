@@ -28,7 +28,7 @@ parser.add_argument('--data', default='data',
 parser.add_argument('--ckpts', default='ckpts',
                     help="Name of the ckpts folder")
 
-def evaluate(model, device, loss_fn, dataloader, metrics, deltaR,deltaR_dz, model_dir):
+def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, deltaR_dz, model_dir):
     """Evaluate the model on `num_steps` batches.
 
     Args:
@@ -85,15 +85,17 @@ def evaluate(model, device, loss_fn, dataloader, metrics, deltaR,deltaR_dz, mode
         etaphi = torch.cat([data.x[:,3][:,None], phi[:,None]], dim=1)
         # NB: there is a problem right now for comparing hits at the +/- pi boundary 
         edge_index = radius_graph(etaphi, r=deltaR, batch=data.batch, loop=True, max_num_neighbors=255)
+        result = model(x_cont, x_cat, edge_index, data.batch)
+
+        #add dz connection
+        #tic = time.time()
         #tinf = (torch.ones(len(data.x[:,5]))*float("Inf")).to('cuda')
         #edge_index_dz = radius_graph(torch.where(data.x[:,7]!=0, data.x[:,5], tinf), r=deltaR_dz, batch=data.batch, loop=True, max_num_neighbors=127)
-        # compute model output
-        tic = time.time()
         #cat_edges = torch.cat([edge_index,edge_index_dz],dim=1)
         #result = model(x_cont, x_cat, cat_edges, data.batch)
-        result = model(x_cont, x_cat, edge_index, data.batch)
-        toc = time.time()
+        #toc = time.time()
         #print('Event processing speed', toc - tic)
+
         loss = loss_fn(result, data.x, data.y, data.batch)
 
         # compute all metrics on this batch
@@ -105,8 +107,9 @@ def evaluate(model, device, loss_fn, dataloader, metrics, deltaR,deltaR_dz, mode
         loss_avg_arr.append(loss.item())
 
     # compute mean of all metrics in summary
-    max_x=400
-    x_n=40
+    max_x=400 # max qT value
+    x_n=40 #number of bins
+
     bin_edges=np.arange(0, max_x, 10)
     inds=np.digitize(qT_arr,bin_edges)
     qT_hist=[]
@@ -194,7 +197,7 @@ if __name__ == '__main__':
             best_validation_loss = json.load(restore_metrics)['loss']
 
     # Evaluate
-    test_metrics, resolutions = evaluate(model, device, loss_fn, test_dl, metrics, deltaR,deltaR_dz, model_dir)
+    test_metrics, resolutions = evaluate(model, device, loss_fn, test_dl, metrics, deltaR, deltaR_dz, model_dir)
     validation_loss = test_metrics['loss']
     is_best = (validation_loss<best_validation_loss)
     is_best = True
@@ -206,8 +209,8 @@ if __name__ == '__main__':
         #                       'state_dict': model.state_dict(),
         #                       'optim_dict': optimizer.state_dict(),
         #                       'sched_dict': scheduler.state_dict()},
-        #                      is_best=True,
-        #                      checkpoint=model_dir)
+        #                       is_best=True,
+        #                       checkpoint=model_dir)
         # Save best val metrics in a json file in the model directory
         #utils.save_dict_to_json(test_metrics, osp.join(model_dir, 'metrics_val_best.json'))
         #utils.save(resolutions, osp.join(model_dir, 'best.resolutions'))

@@ -43,27 +43,9 @@ def train(model, device, optimizer, scheduler, loss_fn, dataloader, epoch):
             x_cat = data.x[:,8:].long()
             phi = torch.atan2(data.x[:,1], data.x[:,0])
             etaphi = torch.cat([data.x[:,3][:,None], phi[:,None]], dim=1)        
-            #add 1D radius
-            #dz = data.x[:,5]
-            #print("before dz[0]=float('Inf') ",dz[0])
-            #print("before dz[0]=float('Inf') ",data.x[0,5])
-            #dz[0]=float('Inf')
-            #print("after dz[0]=float('Inf') ",dz[0])
-            #print("after dz[0]=float('Inf') ",data.x[0,5])
-            #data.x[torch.where(data.x[:,7]==0), 5]=float('Inf')
-            #print('dz length',dz.size()) 
-            #dzz = data.x[torch.where(data.x[:,7]!=0)]
-            #print('dzz length',dzz.size())
             # NB: there is a problem right now for comparing hits at the +/- pi boundary
             edge_index = radius_graph(etaphi, r=deltaR, batch=data.batch, loop=True, max_num_neighbors=255)
-            #tinf = (torch.ones(len(data.x[:,5]))*float("Inf")).to('cuda')
-            #edge_index_dz = radius_graph(torch.where(data.x[:,7]!=0, data.x[:,5], tinf), r=deltaR_dz, batch=data.batch, loop=True, max_num_neighbors=127)
-            #print('edge_index',edge_index[:,1])
-            #print('edge_index_dz',edge_index_dz[:,-3000])
-            #cat_edges = torch.cat([edge_index,edge_index_dz],dim=1)
-            #print('cat_edges',cat_edges[:,-200])
             result = model(x_cont, x_cat, edge_index, data.batch)
-            #result = model(x_cont, x_cat, cat_edges, data.batch)
             loss = loss_fn(result, data.x, data.y, data.batch)
             loss.backward()
             optimizer.step()
@@ -88,8 +70,7 @@ if __name__ == '__main__':
     print(len(train_dl), len(test_dl))
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')    
-    model = net.Net(7, 3).to('cuda')
-    #model = net.Net(7, 3).to(device)
+    model = net.Net(7, 3).to(device)
     optimizer = torch.optim.AdamW(model.parameters(),lr=0.001)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.5, patience=500, threshold=0.05)
     first_epoch = 0
