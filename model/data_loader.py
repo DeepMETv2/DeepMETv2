@@ -65,8 +65,8 @@ class METDataset(Dataset):
             charge=inputs[:,7]
             fromPV=inputs[:,8]
             puppiWeight=inputs[:,9]
-            pvRef=inputs[:,10]
-            pvAssocQuality=inputs[:,11]
+            #pvRef=inputs[:,10]
+            #pvAssocQuality=inputs[:,11]
             x = np.stack((pX,pY,pT,eta,d0,dz,mass,puppiWeight,pdgId,charge,fromPV),axis=-1)
             x = np.nan_to_num(x)
             x = np.clip(x, -5000., 5000.)

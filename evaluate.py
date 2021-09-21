@@ -79,7 +79,8 @@ def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, deltaR_dz, mod
             })
         
         data = data.to(device)
-        x_cont = data.x[:,:7]
+        #x_cont = data.x[:,:7] #remove puppi
+        x_cont = data.x[:,:8] #include puppi
         x_cat = data.x[:,8:].long()
         phi = torch.atan2(data.x[:,1], data.x[:,0])
         etaphi = torch.cat([data.x[:,3][:,None], phi[:,None]], dim=1)
@@ -178,7 +179,8 @@ if __name__ == '__main__':
 
     # Define the model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = net.Net(7, 3).to(device)
+    model = net.Net(8, 3).to(device) #include puppi
+    #model = net.Net(7, 3).to(device) #remove puppi
     optimizer = torch.optim.AdamW(model.parameters(),lr=0.001)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.5, patience=500, threshold=0.05)
 
@@ -200,7 +202,6 @@ if __name__ == '__main__':
     test_metrics, resolutions = evaluate(model, device, loss_fn, test_dl, metrics, deltaR, deltaR_dz, model_dir)
     validation_loss = test_metrics['loss']
     is_best = (validation_loss<best_validation_loss)
-    is_best = True
     if is_best: 
         print('Found new best loss!') 
         best_validation_loss=validation_loss
