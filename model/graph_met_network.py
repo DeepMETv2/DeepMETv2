@@ -14,7 +14,7 @@ class GraphMETNetwork(nn.Module):
         
         self.embed_charge = nn.Embedding(3, hidden_dim//4)
         self.embed_pdgid = nn.Embedding(7, hidden_dim//4)
-        self.embed_pv = nn.Embedding(4, hidden_dim//4)
+        self.embed_pv = nn.Embedding(8, hidden_dim//4)
         
         self.embed_continuous = nn.Sequential(nn.Linear(continuous_dim,hidden_dim//2),
                                               nn.ELU(),
@@ -26,21 +26,21 @@ class GraphMETNetwork(nn.Module):
                                                #nn.BatchNorm1d(hidden_dim//2)
                                               )
 
-        self.encode_all = nn.Sequential(nn.Linear(hidden_dim, hidden_dim//4),
+        self.encode_all = nn.Sequential(nn.Linear(hidden_dim, hidden_dim),
                                         nn.ELU()
                                        )
-        self.bn_all = nn.BatchNorm1d(hidden_dim//4)
+        self.bn_all = nn.BatchNorm1d(hidden_dim)
  
         self.conv_continuous = nn.ModuleList()        
         for i in range(conv_depth):
-            mesg = nn.Sequential(nn.Linear(hidden_dim//2, hidden_dim//4))
+            mesg = nn.Sequential(nn.Linear(2*hidden_dim, hidden_dim))
             self.conv_continuous.append(nn.ModuleList())
             self.conv_continuous[-1].append(EdgeConv(nn=mesg).jittable())
-            self.conv_continuous[-1].append(nn.BatchNorm1d(hidden_dim//4))
+            self.conv_continuous[-1].append(nn.BatchNorm1d(hidden_dim))
 
-        self.output = nn.Sequential(nn.Linear(hidden_dim//4, hidden_dim//8),
+        self.output = nn.Sequential(nn.Linear(hidden_dim, hidden_dim//2),
                                     nn.ELU(),
-                                    nn.Linear(hidden_dim//8, output_dim)
+                                    nn.Linear(hidden_dim//2, output_dim)
                                    )
         self.pdgs = [1, 2, 11, 13, 22, 130, 211]
 
