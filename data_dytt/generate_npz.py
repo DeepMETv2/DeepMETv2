@@ -19,8 +19,7 @@ def DeltaR2(eta1, phi1, eta2, phi2):
     return deta2 + dphi**2
 
 
-def future_savez(i):
-    #event = events_selected[i]
+def future_savez(i, tot, nfile):
     muons = events_selected.Muon[events_selected.Muon.istight]
     electrons = events_selected.Electron[events_selected.Electron.istight]
     leptons = []
@@ -31,12 +30,10 @@ def future_savez(i):
             leptons_px += muons.pt[i][ilep] * np.cos(muons.phi[i][ilep])
             leptons_py += muons.pt[i][ilep] * np.sin(muons.phi[i][ilep])
             leptons.append(muons[i][ilep])
-        #else:
         if ilep < electrons[i].size:
             leptons_px += electrons.pt[i][ilep] * np.cos(electrons.phi[i][ilep])
             leptons_py += electrons.pt[i][ilep] * np.sin(electrons.phi[i][ilep])
             leptons.append(electrons[i][ilep])
-    #print(leptons_px, leptons_py, muons_selected[i].size, electrons_selected[i].size)
 
     genmet_list = [
         events_selected.GenMET.pt[i] * np.cos(events_selected.GenMET.phi[i]) + leptons_px,
@@ -71,17 +68,20 @@ def future_savez(i):
                 events_selected.JetPFCands.dz[i][j],
                 events_selected.JetPFCands.pdgId[i][j],
                 events_selected.JetPFCands.charge[i][j],
+                events_selected.JetPFCands.fromPV[i][j],
+                events_selected.JetPFCands.puppiWeight[i][j],
+                events_selected.JetPFCands.pvRef[i][j],
                 events_selected.JetPFCands.pvAssocQuality[i][j],
-                events_selected.JetPFCands.puppiWeight[i][j]
             ]
             event_list.append(particle_list)
         #else:
         #    print ("jlep: ", jlep, " dr2 ", dr2)
-
-    npz_file = os.environ['PWD']+'/data_dytt/raw/'+dataset+'_event'+str(i)
-    print('Saving file', npz_file+'.npz')
-    return np.savez(npz_file, np.array(event_list), np.array(genmet_list))
-
+    if(nfile==-1):
+        npz_file=os.environ['PWD']+'/raw/'+dataset+'_event'+str(tot)
+    else:
+        npz_file=os.environ['PWD']+'/raw/'+dataset+str(nfile)+'_event'+str(tot)
+    print('Saving file',npz_file+'.npz')
+    return np.savez_compressed(npz_file,np.array(event_list),np.array(genmet_list))
 
 def SelectEvent(nlepcut):
     # select muons
@@ -109,28 +109,68 @@ if __name__ == '__main__':
 
     parser = OptionParser()
     parser.add_option('-d', '--dataset', help='dataset', dest='dataset', default='Test')
+    parser.add_option('-s', '--startevt',type=int, default=0, help='start event')
+    parser.add_option('-f', '--file_number',type=int, default=-1, help='file number')
+    parser.add_option('-n', '--maxNumberr',type=int, default=-1, help='events number')
     parser.add_option('--n_leptons', dest='n_leptons',
                       help='How many leptons are required in the events', default=2)
     parser.add_option('--n_leptons_subtract', dest='n_leptons_subtract',
                       help='How many leptons to be subtracted from the Candidates list. Can not be larger than the n_leptons', default=2)
+
     (options, args) = parser.parse_args()
-    dataset=options.dataset
-
     assert options.n_leptons >= options.n_leptons_subtract, "n_leptons_subtract can not be larger than n_leptons"
+    datasetsname = {
+        "dy": ['GraphMET_drop_trackinfocut/DYJetsToLL_M-50_TuneCP5_13TeV-amcatnloFXFX-pythia8/NanoAOD_0125/210227_040343/',10],
+        "tt": ['GraphMET_drop_trackinfocut/TTJets_DiLept_TuneCP5_13TeV-madgraphMLM-pythia8/NanoAOD_0125/210227_040403/',10],
+    }
+    dataset=options.dataset
+    tot=0
+    tot_target=1
+    if(options.maxNumberr>tot_target):
+        tot_target=options.maxNumberr
+    start_n=0
+    if(options.startevt > 0):
+        start_n=options.startevt
+    if(options.file_number==-1):
+        for i in range(1,datasetsname[dataset][1]+1):
+            fname = 'root://cmseos.fnal.gov//store/user/yilai/'+datasetsname[dataset][0]+'/0000/output_nano_'+str(i) +'.root'
+            print('Opening file:',fname)
+            events = NanoEvents.from_file(fname)
+            events_selected = SelectEvent( options.n_leptons )
+            n_events = events_selected.JetPFCands.pt.shape[0]
+            print('Total events:', n_events)
+            for j in range(n_events):
+                tot+=1
+                if(tot>tot_target):
+                    print("enough events ", tot)
+                    break
+                else:
+                    if(tot>start_n):
+                        future_savez(j, tot, options.file_number)
+            if(tot>tot_target):
+                print("enough events ", tot-1)
+                break
+        print("finished")
+    else:
+        fname = 'root://cmseos.fnal.gov//store/user/yilai/'+datasetsname[dataset][0]+'/0000/output_nano_'+str(options.file_number) +'.root'
+        print('Opening file:',fname)
+        events = NanoEvents.from_file(fname)
+        events_selected = SelectEvent( options.n_leptons )
+        n_events=events_selected.JetPFCands.pt.shape[0]
+        print('N events:',n_events)
+        print('Total events:',tot+n_events)
+        for j in range(n_events):
+            tot+=1
+            if(tot>tot_target):
+                print("enough events ", tot-1)
+                break
+            else:
+                if(tot>start_n):
+                    future_savez(j, tot, options.file_number)
+        print("finished")
 
-    fname = 'root://cms-xrdr.private.lo:2094//xrd/store/user/'+os.environ['USER']+'/'+dataset+'.root'
-    print('Opening file:', fname)
-
-    events = NanoEvents.from_file(fname)
-
-    events_selected = SelectEvent( options.n_leptons )
-    n_events = events_selected.JetPFCands.pt.shape[0]
-    print('Total events:', n_events)
 
     
-    for i in range(n_events):
-    #for i in range(10):
-        future_savez(i)
     '''
     with concurrent.futures.ProcessPoolExecutor(max_workers=8) as executor:
         futures = set()

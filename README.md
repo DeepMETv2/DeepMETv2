@@ -23,13 +23,14 @@ pip install mplhep
 
 Data have been obtained from privately produced NanoAOD, generated with the following package:
 
-https://github.com/mcremone/NanoMET
+https://github.com/DeepMETv2/PFNano.git
 
 All PF candidates have been included from the packedPFCandidates collection in MiniAOD:
 
-https://github.com/mcremone/NanoMET/blob/master/python/addPFCands_cff.py#L16-L17
+https://github.com/DeepMETv2/PFNano/blob/master/python/addPFCands_cff.py#L42-L54
 
-The name of the additional branch in NanoAOD is `JetPFCands`. A dataset corresponding to Z->nunu events has been generated, together with a second dataset composed by a mixture of Drell-Yan and dilepton TT events. The datasets were converted into .npz files using the `data/generate_npz.py` or `data_dytt/generate_npz.py` modules and the output is stored in the `data` or `data_dytt` folder. Each .npz file correspond to one event and contains two arrays:
+The name of the additional branch in NanoAOD is `JetPFCands`. 
+A dataset corresponding to Z->nunu events has been generated, together with a second dataset composed by a mixture of Drell-Yan and dilepton TT events. The datasets were converted into .npz files using the `data_znunu/generate_npz.py` or `data_dytt/generate_npz.py` modules and the output is stored in the `data_znunu` or `data_dytt` folder. Each .npz file correspond to one event and contains two arrays:
 
 <pre>
 >>> import numpy as np

@@ -28,7 +28,7 @@ parser.add_argument('--data', default='data',
 parser.add_argument('--ckpts', default='ckpts',
                     help="Name of the ckpts folder")
 
-def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, model_dir):
+def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, deltaR_dz, model_dir):
     """Evaluate the model on `num_steps` batches.
 
     Args:
@@ -64,7 +64,7 @@ def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, model_dir):
         'puppiMET': 'PUPPI MET',
         'deepMETResponse': 'DeepMETResponse',
         'deepMETResolution': 'DeepMETResolution',
-        'MET': 'Graph MET'
+        'MET': 'DeepMETv2'
     }
 
     # compute metrics over the dataset
@@ -79,17 +79,24 @@ def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, model_dir):
             })
         
         data = data.to(device)
-        x_cont = data.x[:,:8]
+        #x_cont = data.x[:,:7] #remove puppi
+        x_cont = data.x[:,:8] #include puppi
         x_cat = data.x[:,8:].long()
         phi = torch.atan2(data.x[:,1], data.x[:,0])
         etaphi = torch.cat([data.x[:,3][:,None], phi[:,None]], dim=1)
-        # NB: there is a problem right now for comparing hits at the +/- pi boundary                                                
+        # NB: there is a problem right now for comparing hits at the +/- pi boundary 
         edge_index = radius_graph(etaphi, r=deltaR, batch=data.batch, loop=True, max_num_neighbors=255)
-        # compute model output
-        tic = time.time()
         result = model(x_cont, x_cat, edge_index, data.batch)
-        toc = time.time()
-        print('Event processing speed', tic - toc)
+
+        #add dz connection
+        #tic = time.time()
+        #tinf = (torch.ones(len(data.x[:,5]))*float("Inf")).to('cuda')
+        #edge_index_dz = radius_graph(torch.where(data.x[:,7]!=0, data.x[:,5], tinf), r=deltaR_dz, batch=data.batch, loop=True, max_num_neighbors=127)
+        #cat_edges = torch.cat([edge_index,edge_index_dz],dim=1)
+        #result = model(x_cont, x_cat, cat_edges, data.batch)
+        #toc = time.time()
+        #print('Event processing speed', toc - tic)
+
         loss = loss_fn(result, data.x, data.y, data.batch)
 
         # compute all metrics on this batch
@@ -101,7 +108,10 @@ def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, model_dir):
         loss_avg_arr.append(loss.item())
 
     # compute mean of all metrics in summary
-    bin_edges=np.arange(0,400,20)
+    max_x=400 # max qT value
+    x_n=40 #number of bins
+
+    bin_edges=np.arange(0, max_x, 10)
     inds=np.digitize(qT_arr,bin_edges)
     qT_hist=[]
     for i in range(1, len(bin_edges)):
@@ -132,25 +142,11 @@ def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, model_dir):
             u_par_hist.append((np.quantile(u_par_i,0.84)-np.quantile(u_par_i,0.16))/2.)
             u_par_scaled_hist.append((np.quantile(u_par_scaled_i,0.84)-np.quantile(u_par_scaled_i,0.16))/2.)
 
-        u_perp_resolution=np.histogram(qT_hist, bins=20, range=(0,400), weights=u_perp_hist)
-        u_perp_scaled_resolution=np.histogram(qT_hist, bins=20, range=(0,400), weights=u_perp_scaled_hist)
-        u_par_resolution=np.histogram(qT_hist, bins=20, range=(0,400), weights=u_par_hist)
-        u_par_scaled_resolution=np.histogram(qT_hist, bins=20, range=(0,400), weights=u_par_scaled_hist)
-        R=np.histogram(qT_hist, bins=20, range=(0,400), weights=R_hist)
-
-        plt.figure()
-        plt.figure(1)
-        plt.plot(qT_hist, u_perp_hist,        color=colors[key], label=labels[key])
-        plt.figure(2)
-        plt.plot(qT_hist, u_perp_scaled_hist, color=colors[key], label=labels[key])
-        plt.figure(3)
-        plt.plot(qT_hist, u_par_hist,         color=colors[key], label=labels[key])
-        plt.figure(4)
-        plt.plot(qT_hist, u_par_scaled_hist,  color=colors[key], label=labels[key])
-        plt.figure(5)
-        plt.plot(qT_hist, R_hist,             color=colors[key], label=labels[key])
-            
-
+        u_perp_resolution=np.histogram(qT_hist, bins=x_n, range=(0,max_x), weights=u_perp_hist)
+        u_perp_scaled_resolution=np.histogram(qT_hist, bins=x_n, range=(0,max_x), weights=u_perp_scaled_hist)
+        u_par_resolution=np.histogram(qT_hist, bins=x_n, range=(0,max_x), weights=u_par_hist)
+        u_par_scaled_resolution=np.histogram(qT_hist, bins=x_n, range=(0,max_x), weights=u_par_scaled_hist)
+        R=np.histogram(qT_hist, bins=x_n, range=(0,max_x), weights=R_hist)
         resolution_hists[key] = {
             'u_perp_resolution': u_perp_resolution,
             'u_perp_scaled_resolution': u_perp_scaled_resolution,
@@ -158,53 +154,6 @@ def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, model_dir):
             'u_par_scaled_resolution':u_par_scaled_resolution,
             'R': R
         }
-
-    plt.figure(1)
-    plt.axis([0, 400, 0, 35])
-    plt.xlabel(r'$q_{T}$ [GeV]')
-    plt.ylabel(r'$\sigma (u_{\perp})$ [GeV]')
-    plt.legend()
-    plt.savefig(model_dir+'/resol_perp.png')
-    plt.clf()
-    plt.close()
-
-    plt.figure(2)
-    plt.axis([0, 400, 0, 35])
-    plt.xlabel(r'$q_{T}$ [GeV]')
-    plt.ylabel(r'Scaled $\sigma (u_{\perp})$ [GeV]')
-    plt.legend()
-    plt.savefig(model_dir+'/resol_perp_scaled.png')
-    plt.clf()
-    plt.close()
-
-    plt.figure(3)
-    plt.axis([0, 400, 0,60])
-    plt.xlabel(r'$q_{T}$ [GeV]')
-    plt.ylabel(r'$\sigma (u_{\parallel})$ [GeV]')
-    plt.legend()
-    plt.savefig(model_dir+'/resol_parallel.png')
-    plt.clf()
-    plt.close()
-
-    plt.figure(4)
-    plt.axis([0, 400, 0, 60])
-    plt.xlabel(r'$q_{T}$ [GeV]')
-    plt.ylabel(r'Scaled $\sigma (u_{\parallel})$ [GeV]')
-    plt.legend()
-    plt.savefig(model_dir+'/resol_parallel_scaled.png')
-    plt.clf()
-    plt.close()
-
-    plt.figure(5)
-    plt.axis([0, 400, 0, 1.2])
-    plt.axhline(y=1.0, color='black', linestyle='-.')
-    plt.xlabel(r'$q_{T}$ [GeV]')
-    plt.ylabel(r'Response $-\frac{<u_{\parallel}>}{<q_{T}>}$')
-    plt.legend()
-    plt.savefig(model_dir+'/response_parallel.png')
-    plt.clf()
-    plt.close()
-
     metrics_mean = {
         'loss': np.mean(loss_avg_arr),
         #'resolution': (np.quantile(resolution_arr,0.84)-np.quantile(resolution_arr,0.16))/2.
@@ -224,13 +173,14 @@ if __name__ == '__main__':
 
     # fetch dataloaders
     dataloaders = data_loader.fetch_dataloader(data_dir=osp.join(os.environ['PWD'],args.data), 
-                                               batch_size=60, 
-                                               validation_split=.2)
+                                               batch_size=40, 
+                                               validation_split=0.2)
     test_dl = dataloaders['test']
 
     # Define the model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = net.Net(8, 3).to(device)
+    model = net.Net(8, 3).to(device) #include puppi
+    #model = net.Net(7, 3).to(device) #remove puppi
     optimizer = torch.optim.AdamW(model.parameters(),lr=0.001)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.5, patience=500, threshold=0.05)
 
@@ -238,6 +188,7 @@ if __name__ == '__main__':
     metrics = net.metrics
     model_dir = osp.join(os.environ['PWD'],args.ckpts)
     deltaR = 0.4
+    deltaR_dz = 0.3
 
     # Reload weights from the saved file
     restore_ckpt = osp.join(model_dir, args.restore_file + '.pth.tar')
@@ -248,24 +199,21 @@ if __name__ == '__main__':
             best_validation_loss = json.load(restore_metrics)['loss']
 
     # Evaluate
-    test_metrics, resolutions = evaluate(model, device, loss_fn, test_dl, metrics, deltaR, model_dir)
+    test_metrics, resolutions = evaluate(model, device, loss_fn, test_dl, metrics, deltaR, deltaR_dz, model_dir)
     validation_loss = test_metrics['loss']
     is_best = (validation_loss<best_validation_loss)
-
     if is_best: 
         print('Found new best loss!') 
         best_validation_loss=validation_loss
-        
         # Save weights
-        utils.save_checkpoint({'epoch': epoch,
-                               'state_dict': model.state_dict(),
-                               'optim_dict': optimizer.state_dict(),
-                               'sched_dict': scheduler.state_dict()},
-                              is_best=True,
-                              checkpoint=model_dir)
-        
+        #utils.save_checkpoint({'epoch': epoch,
+        #                       'state_dict': model.state_dict(),
+        #                       'optim_dict': optimizer.state_dict(),
+        #                       'sched_dict': scheduler.state_dict()},
+        #                       is_best=True,
+        #                       checkpoint=model_dir)
         # Save best val metrics in a json file in the model directory
-        utils.save_dict_to_json(test_metrics, osp.join(model_dir, 'metrics_val_best.json'))
-        utils.save(resolutions, osp.join(model_dir, 'best.resolutions'))
+        #utils.save_dict_to_json(test_metrics, osp.join(model_dir, 'metrics_val_best.json'))
+        #utils.save(resolutions, osp.join(model_dir, 'best.resolutions'))
 
     utils.save(resolutions, os.path.join(model_dir, "{}.resolutions".format(args.restore_file)))

@@ -65,16 +65,17 @@ class METDataset(Dataset):
             charge=inputs[:,7]
             fromPV=inputs[:,8]
             puppiWeight=inputs[:,9]
+            #pvRef=inputs[:,10]
+            #pvAssocQuality=inputs[:,11]
             x = np.stack((pX,pY,pT,eta,d0,dz,mass,puppiWeight,pdgId,charge,fromPV),axis=-1)
             x = np.nan_to_num(x)
             x = np.clip(x, -5000., 5000.)
-            #x = npzfile['arr_0'][:,:4].astype(np.float32)
+            assert not np.any(np.isnan(x))
             edge_index = torch.empty((2,0), dtype=torch.long)
             y = npzfile['arr_1'].astype(np.float32)[None]
             outdata = Data(x=torch.from_numpy(x),
                            edge_index=edge_index,
                            y=torch.from_numpy(y))
-        
             torch.save(outdata, osp.join(self.processed_dir, 'data_{}.pt'.format(idx)))
 
 def fetch_dataloader(data_dir, batch_size, validation_split):
@@ -84,9 +85,12 @@ def fetch_dataloader(data_dir, batch_size, validation_split):
     indices = list(range(dataset_size))
     split = int(np.floor(validation_split * dataset_size))
     print(split)
-    random_seed= 42
-    train_subset, val_subset = torch.utils.data.random_split(dataset, [dataset_size - split, split],
-                                                             generator=torch.Generator().manual_seed(random_seed))
+    random_seed = 42
+    # fix the random generator for train and test
+    # taken from https://pytorch.org/docs/1.5.0/notes/randomness.html
+    torch.manual_seed(random_seed)
+    train_subset, val_subset = torch.utils.data.random_split(dataset, [dataset_size - split, split])#,
+#                                                             generator=torch.Generator().manual_seed(random_seed))
     print(len(train_subset), len(val_subset))
     dataloaders = {
         'train':  DataLoader(train_subset, batch_size=batch_size, shuffle=False),

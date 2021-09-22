@@ -19,6 +19,7 @@ import model.data_loader as data_loader
 from evaluate import evaluate
 import warnings
 warnings.simplefilter('ignore')
+from time import strftime, gmtime
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--restore_file', default=None,
@@ -38,7 +39,8 @@ def train(model, device, optimizer, scheduler, loss_fn, dataloader, epoch):
         for data in dataloader:
             optimizer.zero_grad()
             data = data.to(device)
-            x_cont = data.x[:,:8]
+            x_cont = data.x[:,:8] #include puppi
+            #x_cont = data.x[:,:7] #remove puppi
             x_cat = data.x[:,8:].long()
             phi = torch.atan2(data.x[:,1], data.x[:,0])
             etaphi = torch.cat([data.x[:,3][:,None], phi[:,None]], dim=1)        
@@ -55,12 +57,13 @@ def train(model, device, optimizer, scheduler, loss_fn, dataloader, epoch):
             t.update()
     scheduler.step(np.mean(loss_avg_arr))
     print('Training epoch: {:02d}, MSE: {:.4f}'.format(epoch, np.mean(loss_avg_arr)))
+    return np.mean(loss_avg_arr)
 
 if __name__ == '__main__':
     args = parser.parse_args()
 
     dataloaders = data_loader.fetch_dataloader(data_dir=osp.join(os.environ['PWD'],args.data), 
-                                               batch_size=60, 
+                                               batch_size=40,
                                                validation_split=.2)
     train_dl = dataloaders['train']
     test_dl = dataloaders['test']
@@ -68,18 +71,23 @@ if __name__ == '__main__':
     print(len(train_dl), len(test_dl))
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')    
-    #model = net.Net(8, 3).to('cuda')
-    model = net.Net(8, 3).to(device)
+    model = net.Net(8, 3).to(device) #include puppi
+    #model = net.Net(7, 3).to(device) #remove puppi
     optimizer = torch.optim.AdamW(model.parameters(),lr=0.001)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.5, patience=500, threshold=0.05)
     first_epoch = 0
     best_validation_loss = 10e7
     deltaR = 0.4
+    deltaR_dz = 0.3
 
     loss_fn = net.loss_fn
     metrics = net.metrics
 
     model_dir = osp.join(os.environ['PWD'],args.ckpts)
+    loss_log = open(model_dir+'/loss.log', 'w')
+    loss_log.write('# loss log for training starting in '+strftime("%Y-%m-%d %H:%M:%S", gmtime()) + '\n')
+    loss_log.write('epoch, loss, val_loss\n')
+    loss_log.flush()
 
     # reload weights from restore_file if specified
     if args.restore_file is not None:
@@ -90,14 +98,14 @@ if __name__ == '__main__':
         with open(osp.join(model_dir, 'metrics_val_best.json')) as restore_metrics:
             best_validation_loss = json.load(restore_metrics)['loss']
 
-    for epoch in range(first_epoch+1,201):
+    for epoch in range(first_epoch+1,101):
 
         print('Current best loss:', best_validation_loss)
         if '_last_lr' in scheduler.state_dict():
             print('Learning rate:', scheduler.state_dict()['_last_lr'][0])
 
         # compute number of batches in one epoch (one full pass over the training set)
-        train(model, device, optimizer, scheduler, loss_fn, train_dl, epoch)
+        train_loss = train(model, device, optimizer, scheduler, loss_fn, train_dl, epoch)
 
         # Save weights
         utils.save_checkpoint({'epoch': epoch,
@@ -108,9 +116,11 @@ if __name__ == '__main__':
                               checkpoint=model_dir)
 
         # Evaluate for one epoch on validation set
-        test_metrics, resolutions = evaluate(model, loss_fn, test_dl, metrics, deltaR, model_dir)
+        test_metrics, resolutions = evaluate(model, device, loss_fn, test_dl, metrics, deltaR,deltaR_dz, model_dir)
 
         validation_loss = test_metrics['loss']
+        loss_log.write('%d,%.2f,%.2f\n'%(epoch,train_loss, validation_loss))
+        loss_log.flush()
         is_best = (validation_loss<=best_validation_loss)
 
         # If best_eval, best_save_path
@@ -132,4 +142,6 @@ if __name__ == '__main__':
 
         utils.save_dict_to_json(test_metrics, osp.join(model_dir, 'metrics_val_last.json'))
         utils.save(resolutions, osp.join(model_dir, 'last.resolutions'))
+
+    loss_log.close()
 
