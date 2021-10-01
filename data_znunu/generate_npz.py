@@ -1,11 +1,17 @@
-from coffea.nanoaod import NanoEvents
+from coffea.nanoevents import NanoEventsFactory
+from coffea.nanoevents.schemas import NanoAODSchema,BaseSchema
+#from coffea.nanoaod import NanoEvents
 import numpy as np
 import os
 from optparse import OptionParser
 import concurrent.futures
+import glob
+import awkward as ak
+from root_numpy import root2array, rec2array, array2root
+import time
 
 def future_savez(i, tot):
-        #event = events[i]
+        #tic=time.time()
         genmet_list = [
                 events.GenMET.pt[i] * np.cos(events.GenMET.phi[i]),
                 events.GenMET.pt[i] * np.sin(events.GenMET.phi[i]),
@@ -16,98 +22,112 @@ def future_savez(i, tot):
                 events.DeepMETResponseTune.pt[i] * np.cos(events.DeepMETResponseTune.phi[i]),
                 events.DeepMETResponseTune.pt[i] * np.sin(events.DeepMETResponseTune.phi[i]),
                 events.DeepMETResolutionTune.pt[i] * np.cos(events.DeepMETResolutionTune.phi[i]),
-                events.DeepMETResolutionTune.pt[i] * np.sin(events.DeepMETResolutionTune.phi[i])
+                events.DeepMETResolutionTune.pt[i] * np.sin(events.DeepMETResolutionTune.phi[i]),
+                events.LHE.HT[i]
         ]
 
-        event_list = []
-        n_particles=len(events.JetPFCands.pt[i])
-        #print(n_particles)
+        particle_list = np.column_stack([
+                      events.PFCands.pt[i],
+                      events.PFCands.eta[i],
+                      events.PFCands.phi[i],
+                      events.PFCands.mass[i],
+                      events.PFCands.d0[i],
+                      events.PFCands.dz[i],
+                      events.PFCands.pdgId[i],
+                      events.PFCands.charge[i],
+                      events.PFCands.fromPV[i],
+                      events.PFCands.puppiWeight[i],
+                      events.PFCands.pvRef[i],
+                      events.PFCands.pvAssocQuality[i]
+        ])
+        eventi = [particle_list,genmet_list]
+        #toc=time.time()
+        #print(toc-tic)
+        return eventi
 
-        for j in range(n_particles):
-                particle_list=[
-                        events.JetPFCands.pt[i][j],
-                        events.JetPFCands.eta[i][j],
-                        events.JetPFCands.phi[i][j],
-                        events.JetPFCands.mass[i][j],
-                        events.JetPFCands.d0[i][j],
-                        events.JetPFCands.dz[i][j],
-                        events.JetPFCands.pdgId[i][j],
-                        events.JetPFCands.charge[i][j],
-                        events.JetPFCands.fromPV[i][j],
-                        events.JetPFCands.puppiWeight[i][j],
-                        events.JetPFCands.pvRef[i][j],
-                        events.JetPFCands.pvAssocQuality[i][j]
-                ]
-                event_list.append(particle_list)
-        npz_file=os.environ['PWD']+'/raw/'+dataset+'_event'+str(tot)
-        print('Saving file',npz_file+'.npz')
-        return np.savez(npz_file,np.array(event_list),np.array(genmet_list))
 
 if __name__ == '__main__':
         
         parser = OptionParser()
         parser.add_option('-d', '--dataset', help='dataset', dest='dataset')
-        parser.add_option('-s', '--startevt',type=int, default=1, help='startevt')
+        parser.add_option('-s', '--startfile',type=int, default=0, help='startfile')
+        parser.add_option('-e', '--endfile',type=int, default=1, help='endfile')
         (options, args) = parser.parse_args()
         datasetsname = {
-            "znunu100to200": ['GraphMET_drop_trackinfocut/ZJetsToNuNu_HT-100To200_13TeV-madgraph/NanoAOD_0125/210226_233008',3],
-            "znunu200to400": ['GraphMET_drop_trackinfocut/ZJetsToNuNu_HT-200To400_13TeV-madgraph/NanoAOD_0125/210226_233039',3],
-            "znunu400to600": ['GraphMET_drop_trackinfocut/ZJetsToNuNu_HT-400To600_13TeV-madgraph/NanoAOD_0125/210226_233053',5],
-            "znunu600to800": ['GraphMET_drop_trackinfocut/ZJetsToNuNu_HT-600To800_13TeV-madgraph/NanoAOD_0125/210226_233107',8],
-            "znunu800to1200":[ 'GraphMET_drop_trackinfocut/ZJetsToNuNu_HT-800To1200_13TeV-madgraph/NanoAOD_0125/210226_233123',10],
-            "znunu1200to2500": ['GraphMET_drop_trackinfocut/ZJetsToNuNu_HT-1200To2500_13TeV-madgraph/NanoAOD_0125/210226_233139',15],
-            "znunu2500toInf": ['GraphMET_drop_trackinfocut/ZJetsToNuNu_HT-2500ToInf_13TeV-madgraph/NanoAOD_0125/210226_233153',30],
+            "znunu200to400": ['Znunu/ZJetsToNuNu_HT-200To400_TuneCP5_13TeV-madgraphMLM-pythia8/'],
+            "znunu400to600": ['Znunu/ZJetsToNuNu_HT-400To600_TuneCP5_13TeV-madgraphMLM-pythia8/'],
+            "znunu600to800": ['Znunu/ZJetsToNuNu_HT-600To800_TuneCP5_13TeV-madgraphMLM-pythia8/'],
+            "znunu800to1200":[ 'Znunu/ZJetsToNuNu_HT-800To1200_TuneCP5_13TeV-madgraphMLM-pythia8/'],
+            "znunu1200to2500": ['Znunu/ZJetsToNuNu_HT-1200To2500_TuneCP5_13TeV-madgraphMLM-pythia8/'],
+            "znunu2500toInf": ['Znunu/ZJetsToNuNu_HT-2500ToInf_TuneCP5_13TeV-madgraphMLM-pythia8/'],
         }
         dataset=options.dataset
-        tot=0
-        start_n=1
-        if(options.startevt > 1):
-            start_n=options.startevt
-        for i in range(1,datasetsname[dataset][1]+1):
-            fname = 'root://cmseos.fnal.gov//store/user/yilai/'+datasetsname[dataset][0]+'/0000/output_nano_'+str(i) +'.root'
-            print('Opening file:',fname)
-            events = NanoEvents.from_file(fname)
-            n_events=events.JetPFCands.pt.shape[0]
-            print('N events:',n_events)
-            print('Total events:',tot+n_events)
-            for j in range(n_events):
-                tot+=1
-                if(tot>60000):
-                    print("enough events>60000")
-                    break
+        if dataset not in datasetsname.keys():
+            print('choose one of them: ', datasetsname.keys())
+            exit()
+        file_names = glob.glob('/eos/uscms/store/group/lpcjme/NanoMET/'+datasetsname[options.dataset][0]+'/*/*/*/*root')
+        print('find ', len(file_names)," files")
+        if options.startfile>=options.endfile and options.endfile!=-1:
+            print("make sure options.startfile<options.endfile")
+            exit()
+        inpz=0
+        eventperfile=1000
+        currentfile=0
+        for ifile in file_names:
+            if currentfile<options.startfile:
+                currentfile+=1
+                continue
+            events = NanoEventsFactory.from_root(ifile, schemaclass=NanoAODSchema).events()
+            nevents_total = len(events)
+            print(ifile, ' Number of events:', nevents_total)
+            
+            for i in range(int(nevents_total / eventperfile)+1):
+                if i< int(nevents_total / eventperfile):
+                    print('from ',i*eventperfile, ' to ', (i+1)*eventperfile)
+                    events_slice = events[i*eventperfile:(i+1)*eventperfile]
+                elif i == int(nevents_total / eventperfile) and i*eventperfile<=nevents_total:
+                    print('from ',i*eventperfile, ' to ', nevents_total)
+                    events_slice = events[i*eventperfile:nevents_total]
                 else:
-                    if(tot>start_n):
-                        future_savez(j, tot)
+                    print(' weird ... ')
+                nparticles_per_event = ak.num(events_slice.PFCands.pt, axis=1)
+                print("max NPF in this range: ", max(nparticles_per_event))
+                nparticles_per_event=max(nparticles_per_event)
+                tic=time.time()
+                met_list = np.column_stack([
+                        events_slice.GenMET.pt * np.cos(events_slice.GenMET.phi),
+                        events_slice.GenMET.pt * np.sin(events_slice.GenMET.phi),
+                        events_slice.MET.pt * np.cos(events_slice.MET.phi),
+                        events_slice.MET.pt * np.sin(events_slice.MET.phi),
+                        events_slice.PuppiMET.pt * np.cos(events_slice.PuppiMET.phi),
+                        events_slice.PuppiMET.pt * np.sin(events_slice.PuppiMET.phi),
+                        events_slice.DeepMETResponseTune.pt * np.cos(events_slice.DeepMETResponseTune.phi),
+                        events_slice.DeepMETResponseTune.pt * np.sin(events_slice.DeepMETResponseTune.phi),
+                        events_slice.DeepMETResolutionTune.pt * np.cos(events_slice.DeepMETResolutionTune.phi),
+                        events_slice.DeepMETResolutionTune.pt * np.sin(events_slice.DeepMETResolutionTune.phi),
+                        events_slice.LHE.HT
+                ])
+                particle_list = ak.concatenate([
+                             [ ak.fill_none(ak.pad_none(events_slice.PFCands.pt, nparticles_per_event,clip=True),-999)           ] ,
+                             [ ak.fill_none(ak.pad_none(events_slice.PFCands.eta, nparticles_per_event,clip=True),-999)          ] ,
+                             [ ak.fill_none(ak.pad_none(events_slice.PFCands.phi, nparticles_per_event,clip=True),-999)          ] ,
+                             [ ak.fill_none(ak.pad_none(events_slice.PFCands.d0, nparticles_per_event,clip=True),-999)           ] ,
+                             [ ak.fill_none(ak.pad_none(events_slice.PFCands.dz, nparticles_per_event,clip=True),-999)           ] ,
+                             [ ak.fill_none(ak.pad_none(events_slice.PFCands.mass, nparticles_per_event,clip=True),-999)         ] ,
+                             [ ak.fill_none(ak.pad_none(events_slice.PFCands.puppiWeight, nparticles_per_event,clip=True),-999)  ] ,
+                             [ ak.fill_none(ak.pad_none(events_slice.PFCands.pdgId, nparticles_per_event,clip=True),-999)        ] ,
+                             [ ak.fill_none(ak.pad_none(events_slice.PFCands.charge, nparticles_per_event,clip=True),-999)        ] ,
+                             [ ak.fill_none(ak.pad_none(events_slice.PFCands.fromPV, nparticles_per_event,clip=True),-999)        ] ,
+                             [ ak.fill_none(ak.pad_none(events_slice.PFCands.pvRef, nparticles_per_event,clip=True),-999)         ] ,
+                             [ ak.fill_none(ak.pad_none(events_slice.PFCands.pvAssocQuality, nparticles_per_event,clip=True),-999)] ,
+                ])
+                npz_file=os.environ['PWD']+'/raw/'+dataset+'_file'+str(currentfile)+'_slice_'+str(i)+'_nevent_'+str(len(events_slice))
+                np.savez(npz_file,x=particle_list,y=met_list) 
+                toc=time.time()
+                print('time:',toc-tic)
+            currentfile+=1
+            if currentfile>=options.endfile:
+                print('=================> finished ')
+                exit()
 
-        '''
-        #fname = '/cms/scratch/matteoc/CMSSW_10_2_22/src/PhysicsTools/NanoMET/test/'+options.dataset+'.root'
-        fname = 'root://cms-xrdr.private.lo:2094//xrd/store/user/'+os.environ['USER']+'/'+dataset+'.root'
-        #fname = 'root://cms-xrdr.private.lo:2094//xrd/store/user/'+os.environ['USER']+'/'+dataset+'.root'
-        print('Opening file:',fname)
 
-        events = NanoEvents.from_file(fname)
-        n_events=events.JetPFCands.pt.shape[0]
-        print('Total events:',n_events)
-        
-        for i in range(n_events):
-                future_savez(i)
-        
-        with concurrent.futures.ProcessPoolExecutor(max_workers=1) as executor:
-                futures = set()
-                futures.update(executor.submit(future_savez, i) for i in range(n_events))
-                try:
-                        total = len(futures)
-                        processed = 0
-                        while len(futures) > 0:
-                                finished = set(job for job in futures if job.done())
-                                for job in finished:
-                                        job.result()
-                                futures -= finished
-                        del finished
-                except KeyboardInterrupt:
-                        print("Ok quitter")
-                        for job in futures: job.cancel()
-                except:
-                        for job in futures: job.cancel()
-                        raise
-        '''
