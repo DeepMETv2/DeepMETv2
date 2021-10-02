@@ -57,7 +57,7 @@ def loss_fn(weights, prediction, truth, batch):
     BCE = nn.BCELoss()
     #prediction[:,]: pX,pY,pT,eta,d0,dz,mass,puppiWeight,pdgId,charge,fromPV
     loss=0.5*( ( METx + true_px)**2 + ( METy + true_py)**2 ).mean() 
-        + 5000*BCE(torch.where(prediction[:,9]==0, tzero, weights), torch.where(prediction[:,9]==0, tzero, prediction[:,7]))
+    #+ 5000*BCE(torch.where(prediction[:,9]==0, tzero, weights), torch.where(prediction[:,9]==0, tzero, prediction[:,7]))
     return loss
 
 def getdot(vx, vy):

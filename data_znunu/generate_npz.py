@@ -1,13 +1,11 @@
 from coffea.nanoevents import NanoEventsFactory
 from coffea.nanoevents.schemas import NanoAODSchema,BaseSchema
-#from coffea.nanoaod import NanoEvents
 import numpy as np
 import os
 from optparse import OptionParser
 import concurrent.futures
 import glob
 import awkward as ak
-from root_numpy import root2array, rec2array, array2root
 import time
 
 def future_savez(i, tot):
@@ -90,9 +88,9 @@ if __name__ == '__main__':
                     events_slice = events[i*eventperfile:nevents_total]
                 else:
                     print(' weird ... ')
-                nparticles_per_event = ak.num(events_slice.PFCands.pt, axis=1)
-                print("max NPF in this range: ", max(nparticles_per_event))
-                nparticles_per_event=max(nparticles_per_event)
+
+                nparticles_per_event = max(ak.num(events_slice.PFCands.pt, axis=1))
+                print("max NPF in this range: ", nparticles_per_event)
                 tic=time.time()
                 met_list = np.column_stack([
                         events_slice.GenMET.pt * np.cos(events_slice.GenMET.phi),

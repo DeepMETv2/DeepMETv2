@@ -32,11 +32,20 @@ class METDataset(Dataset):
         if not hasattr(self,'input_files'):
             self.input_files = sorted(glob.glob(self.raw_dir+'/*.npz'))
         return [f.split('/')[-1] for f in self.input_files]
+
+    @property
+    def existing_pt_names(self):
+        if not hasattr(self,'pt_files'):
+            self.pt_files = sorted(glob.glob(self.processed_dir+'/data*.pt'))
+        return [f.split('/')[-1] for f in self.pt_files]
     
     @property
     def processed_file_names(self):
         if not hasattr(self,'processed_files'):
-            proc_names = ['data_{}.pt'.format(idx) for idx in range(len(self.raw_file_names))]
+            print(self.raw_file_names)
+            #FIXME need to figure out how to get a list of expected pt files
+            proc_names = [idx for idx in self.existing_pt_names]
+            #proc_names = [idx for idx in self.raw_file_names]
             self.processed_files = [osp.join(self.processed_dir,name) for name in proc_names]
         return self.processed_files
     
@@ -51,36 +60,35 @@ class METDataset(Dataset):
         #convert the npz into pytorch tensors and save them
         path = self.processed_dir
         for idx,raw_path in enumerate(tqdm(self.raw_paths)):
-            npzfile = np.load(raw_path)
-            inputs = npzfile['arr_0'].astype(np.float32)
-            pX=inputs[:,0]*np.cos(inputs[:,2])
-            pY=inputs[:,0]*np.sin(inputs[:,2])
-            pT=inputs[:,0]
-            eta=inputs[:,1]
-            d0=inputs[:,4]
-            dz=inputs[:,5]
-            #dz[dz==float('inf')]=589 #there is one particle with dz=inf
-            mass=inputs[:,3]
-            pdgId=inputs[:,6]
-            charge=inputs[:,7]
-            fromPV=inputs[:,8]
-            puppiWeight=inputs[:,9]
-            #pvRef=inputs[:,10]
-            #pvAssocQuality=inputs[:,11]
-            x = np.stack((pX,pY,pT,eta,d0,dz,mass,puppiWeight,pdgId,charge,fromPV),axis=-1)
-            x = np.nan_to_num(x)
-            x = np.clip(x, -5000., 5000.)
-            assert not np.any(np.isnan(x))
-            edge_index = torch.empty((2,0), dtype=torch.long)
-            y = npzfile['arr_1'].astype(np.float32)[None]
-            outdata = Data(x=torch.from_numpy(x),
-                           edge_index=edge_index,
-                           y=torch.from_numpy(y))
-            torch.save(outdata, osp.join(self.processed_dir, 'data_{}.pt'.format(idx)))
+            npzfile = np.load(raw_path,allow_pickle=True)
+            for ievt in range(np.shape(npzfile['x'])[1]):
+                inputs = np.array(npzfile['x'][:,ievt,:]).astype(np.float32)
+                #original: pt, eta, phi, d0, dz, mass, puppiWeight, pdgid, charge, frompv, pvref, pvAssocQuality
+                inputs=inputs.T 
+                #now: pX,pY,pT,eta,d0,dz,mass,puppiWeight,pdgId,charge,fromPV
+                x = inputs[:,3:10]
+                x=np.insert(x,0, inputs[:,0]*np.cos(inputs[:,2]),axis=1)
+                x=np.insert(x,1, inputs[:,0]*np.sin(inputs[:,2]),axis=1)
+                x=np.insert(x,2, inputs[:,0],axis=1)
+                x=np.insert(x,3, inputs[:,1],axis=1)
+                x=x[x[:,8]!=-999]
+                x=x[x[:,9]!=-999]
+                #print(x[0])
+                x = np.nan_to_num(x)
+                x = np.clip(x, -5000., 5000.)
+                assert not np.any(np.isnan(x))
+                edge_index = torch.empty((2,0), dtype=torch.long)
+                y = (np.array(npzfile['y'][ievt,:]).astype(np.float32)[None])
+                #print(y)
+                outdata = Data(x=torch.from_numpy(x),
+                               edge_index=edge_index,
+                               y=torch.from_numpy(y))
+                torch.save(outdata, osp.join(self.processed_dir,(raw_path.replace('.npz','_'+str(ievt)+'.pt')).split('/')[-1] ))
 
 def fetch_dataloader(data_dir, batch_size, validation_split):
     transform = T.Cartesian(cat=False)
     dataset = METDataset(data_dir)
+    #print(dataset)
     dataset_size = len(dataset)
     indices = list(range(dataset_size))
     split = int(np.floor(validation_split * dataset_size))
@@ -91,9 +99,14 @@ def fetch_dataloader(data_dir, batch_size, validation_split):
     torch.manual_seed(random_seed)
     train_subset, val_subset = torch.utils.data.random_split(dataset, [dataset_size - split, split])#,
 #                                                             generator=torch.Generator().manual_seed(random_seed))
-    print(len(train_subset), len(val_subset))
+    print('length of train/val data: ', len(train_subset), len(val_subset))
     dataloaders = {
         'train':  DataLoader(train_subset, batch_size=batch_size, shuffle=False),
         'test':   DataLoader(val_subset, batch_size=batch_size, shuffle=False)
         }
     return dataloaders
+
+
+
+
+
