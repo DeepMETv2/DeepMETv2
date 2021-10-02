@@ -118,6 +118,10 @@ def future_savez(dataset,currentfile):
     #print(len(events_selected.PFCands.pt[0]))
     #save the rest of PFcandidates 
 
+
+    nparticles_per_event = max(ak.num(events_selected.PFCands.pt, axis=1))
+    print("max NPF in this range: ", nparticles_per_event)
+
     particle_list = ak.concatenate([
                  [ ak.fill_none(ak.pad_none(events_selected.PFCands.pt, nparticles_per_event,clip=True),-999)           ] ,
                  [ ak.fill_none(ak.pad_none(events_selected.PFCands.eta, nparticles_per_event,clip=True),-999)          ] ,
@@ -194,8 +198,6 @@ if __name__ == '__main__':
                 else:
                     print(' weird ... ')
                     exit()
-                nparticles_per_event = max(ak.num(events_slice.PFCands.pt, axis=1))
-                print("max NPF in this range: ", nparticles_per_event)
                 tic=time.time()
                 future_savez(dataset,currentfile)
                 toc=time.time()
@@ -204,5 +206,4 @@ if __name__ == '__main__':
             if currentfile>=options.endfile:
                 print('=================> finished ')
                 exit()
-
 
