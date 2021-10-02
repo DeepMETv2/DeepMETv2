@@ -7,6 +7,16 @@ import concurrent.futures
 import glob
 import awkward as ak
 import time
+import json
+from collections import OrderedDict,defaultdict
+recdd = lambda : defaultdict(recdd) ## define recursive defaultdict
+JSON_LOC = 'filelist.json'
+
+def multidict_tojson(filepath, indict):
+    ## expand into multidimensional dictionary
+    with open(filepath, "w") as fo:
+        json.dump( indict, fo)
+        print("save to %s" %filepath)
 
 def future_savez(i, tot):
         #tic=time.time()
@@ -59,12 +69,24 @@ if __name__ == '__main__':
             "znunu1200to2500": ['Znunu/ZJetsToNuNu_HT-1200To2500_TuneCP5_13TeV-madgraphMLM-pythia8/'],
             "znunu2500toInf": ['Znunu/ZJetsToNuNu_HT-2500ToInf_TuneCP5_13TeV-madgraphMLM-pythia8/'],
         }
+
+        # Be nice to eos, save list to a file
+        #filelists = recdd()
+        #for datset in datasetsname.keys():
+        #    filelists[datset] = glob.glob('/eos/uscms/store/group/lpcjme/NanoMET/'+datasetsname[datset][0]+'/*/*/*/*root')
+        #    filelists[datset] = [x.replace('/eos/uscms','root://cmseos.fnal.gov/') for x in filelists[datset] ]
+        #multidict_tojson(JSON_LOC, filelists )
+        #exit()
         dataset=options.dataset
         if dataset not in datasetsname.keys():
             print('choose one of them: ', datasetsname.keys())
             exit()
-        file_names = glob.glob('/eos/uscms/store/group/lpcjme/NanoMET/'+datasetsname[options.dataset][0]+'/*/*/*/*root')
+        #Read file from json
+        with open(JSON_LOC, "r") as fo:
+            file_names = json.load(fo)
+        file_names = file_names[dataset]
         print('find ', len(file_names)," files")
+
         if options.startfile>=options.endfile and options.endfile!=-1:
             print("make sure options.startfile<options.endfile")
             exit()
