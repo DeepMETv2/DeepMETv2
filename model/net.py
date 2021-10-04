@@ -51,10 +51,11 @@ def loss_fn(weights, prediction, truth, batch):
     py=prediction[:,1]
     true_px=truth[:,0] 
     true_py=truth[:,1]
+    #print('HT', truth[:,10])
     METx = scatter_add(weights*px, batch)
     METy = scatter_add(weights*py, batch)
-    tzero = torch.zeros(prediction.shape[0]).to('cuda')
-    BCE = nn.BCELoss()
+    #tzero = torch.zeros(prediction.shape[0]).to('cuda')
+    #BCE = nn.BCELoss()
     #prediction[:,]: pX,pY,pT,eta,d0,dz,mass,puppiWeight,pdgId,charge,fromPV
     loss=0.5*( ( METx + true_px)**2 + ( METy + true_py)**2 ).mean() 
     #+ 5000*BCE(torch.where(prediction[:,9]==0, tzero, weights), torch.where(prediction[:,9]==0, tzero, prediction[:,7]))

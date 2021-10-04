@@ -63,13 +63,12 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     dataloaders = data_loader.fetch_dataloader(data_dir=osp.join(os.environ['PWD'],args.data), 
-                                               batch_size=40,
+                                               batch_size=6,
                                                validation_split=.2)
     train_dl = dataloaders['train']
     test_dl = dataloaders['test']
 
     print(len(train_dl), len(test_dl))
-
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')    
     model = net.Net(8, 3).to(device) #include puppi
     #model = net.Net(7, 3).to(device) #remove puppi

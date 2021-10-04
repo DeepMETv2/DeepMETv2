@@ -30,28 +30,32 @@ class METDataset(Dataset):
     @property
     def raw_file_names(self):
         if not hasattr(self,'input_files'):
+            #self.input_files = sorted(glob.glob(self.raw_dir+'/tt_file0_*.npz'))
             self.input_files = sorted(glob.glob(self.raw_dir+'/*.npz'))
         return [f.split('/')[-1] for f in self.input_files]
 
     @property
     def existing_pt_names(self):
         if not hasattr(self,'pt_files'):
-            self.pt_files = sorted(glob.glob(self.processed_dir+'/data*.pt'))
+            self.pt_files = sorted(glob.glob(self.processed_dir+'/*file*slice*nevent*pt'))
         return [f.split('/')[-1] for f in self.pt_files]
     
     @property
     def processed_file_names(self):
         if not hasattr(self,'processed_files'):
-            print(self.raw_file_names)
+            #print(self.raw_file_names)
             #FIXME need to figure out how to get a list of expected pt files
             proc_names = [idx for idx in self.existing_pt_names]
-            #proc_names = [idx for idx in self.raw_file_names]
+            #proc_names = ['data_{}.pt'.format(idx) for idx in range(len(self.raw_file_names))]
             self.processed_files = [osp.join(self.processed_dir,name) for name in proc_names]
         return self.processed_files
     
     def __len__(self):
         return len(self.processed_file_names)
-    
+   
+    def len(self):
+        return len(self.processed_file_names)
+ 
     def get(self, idx):
         data = torch.load(self.processed_files[idx])
         return data
