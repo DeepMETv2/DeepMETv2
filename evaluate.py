@@ -5,6 +5,7 @@ import logging
 import os.path as osp
 import os
 import time
+from tqdm import tqdm
 
 import numpy as np
 import json
@@ -28,7 +29,7 @@ parser.add_argument('--data', default='data',
 parser.add_argument('--ckpts', default='ckpts',
                     help="Name of the ckpts folder")
 
-def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, deltaR_dz, model_dir):
+def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, n_dz, model_dir):
     """Evaluate the model on `num_steps` batches.
 
     Args:
@@ -68,44 +69,53 @@ def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, deltaR_dz, mod
     }
 
     # compute metrics over the dataset
-    for data in dataloader:
+    with tqdm(total=len(dataloader)) as t:
+        for data in dataloader:
 
-        has_deepmet = (data.y.size()[1] > 6)
-        
-        if has_deepmet == True and 'deepMETResponse' not in resolutions_arr.keys():
-            resolutions_arr.update({
-                'deepMETResponse': [[],[],[]],
-                'deepMETResolution': [[],[],[]]
-            })
-        
-        data = data.to(device)
-        #x_cont = data.x[:,:7] #remove puppi
-        x_cont = data.x[:,:8] #include puppi
-        x_cat = data.x[:,8:].long()
-        phi = torch.atan2(data.x[:,1], data.x[:,0])
-        etaphi = torch.cat([data.x[:,3][:,None], phi[:,None]], dim=1)
-        # NB: there is a problem right now for comparing hits at the +/- pi boundary 
-        edge_index = radius_graph(etaphi, r=deltaR, batch=data.batch, loop=True, max_num_neighbors=255)
-        result = model(x_cont, x_cat, edge_index, data.batch)
+            has_deepmet = (data.y.size()[1] > 6)
+            
+            if has_deepmet == True and 'deepMETResponse' not in resolutions_arr.keys():
+                resolutions_arr.update({
+                    'deepMETResponse': [[],[],[]],
+                    'deepMETResolution': [[],[],[]]
+                })
+            
+            data = data.to(device)
+            #x_cont = data.x[:,:7] #remove puppi
+            x_cont = data.x[:,:8] #include puppi
+            x_cat = data.x[:,8:].long()
+            phi = torch.atan2(data.x[:,1], data.x[:,0])
+            etaphi = torch.cat([data.x[:,3][:,None], phi[:,None]], dim=1)
+            # NB: there is a problem right now for comparing hits at the +/- pi boundary 
+            edge_index = radius_graph(etaphi, r=deltaR, batch=data.batch, loop=True, max_num_neighbors=255)
+            # add dz graph to eta-phi graph
+            dz = data.x[:,5] 
+            tinf = (torch.ones(len(dz))*float("Inf")).to('cuda')
+            edge_index_dz = knn_graph(torch.where(data.x[:,7]!=0, dz, tinf), k=n_dz, batch=data.batch, loop=True)
+            edge_index = torch.cat([edge_index,edge_index_dz],dim=1)
+            
+            result = model(x_cont, x_cat, edge_index, data.batch)
 
-        #add dz connection
-        #tic = time.time()
-        #tinf = (torch.ones(len(data.x[:,5]))*float("Inf")).to('cuda')
-        #edge_index_dz = radius_graph(torch.where(data.x[:,7]!=0, data.x[:,5], tinf), r=deltaR_dz, batch=data.batch, loop=True, max_num_neighbors=127)
-        #cat_edges = torch.cat([edge_index,edge_index_dz],dim=1)
-        #result = model(x_cont, x_cat, cat_edges, data.batch)
-        #toc = time.time()
-        #print('Event processing speed', toc - tic)
+            #add dz connection
+            #tic = time.time()
+            #tinf = (torch.ones(len(data.x[:,5]))*float("Inf")).to('cuda')
+            #edge_index_dz = radius_graph(torch.where(data.x[:,7]!=0, data.x[:,5], tinf), r=deltaR_dz, batch=data.batch, loop=True, max_num_neighbors=127)
+            #cat_edges = torch.cat([edge_index,edge_index_dz],dim=1)
+            #result = model(x_cont, x_cat, cat_edges, data.batch)
+            #toc = time.time()
+            #print('Event processing speed', toc - tic)
 
-        loss = loss_fn(result, data.x, data.y, data.batch)
+            loss = loss_fn(result, data.x, data.y, data.batch)
 
-        # compute all metrics on this batch
-        resolutions, qT= metrics['resolution'](result, data.x, data.y, data.batch)
-        for key in resolutions_arr:
-            for i in range(len(resolutions_arr[key])):
-                resolutions_arr[key][i]=np.concatenate((resolutions_arr[key][i],resolutions[key][i]))
-        qT_arr=np.concatenate((qT_arr,qT))
-        loss_avg_arr.append(loss.item())
+            # compute all metrics on this batch
+            resolutions, qT= metrics['resolution'](result, data.x, data.y, data.batch)
+            for key in resolutions_arr:
+                for i in range(len(resolutions_arr[key])):
+                    resolutions_arr[key][i]=np.concatenate((resolutions_arr[key][i],resolutions[key][i]))
+            qT_arr=np.concatenate((qT_arr,qT))
+            loss_avg_arr.append(loss.item())
+
+            t.update()
 
     # compute mean of all metrics in summary
     max_x=400 # max qT value
