@@ -31,7 +31,7 @@ parser.add_argument('--ckpts', default='ckpts',
                     help="Name of the ckpts folder")
 
 
-def train(model, device, optimizer, scheduler, loss_fn, dataloader, epoch, n_dz):
+def train(model, device, optimizer, scheduler, loss_fn, dataloader, epoch):
     model.train()
     loss_avg_arr = []
     loss_avg = utils.RunningAverage()
@@ -46,11 +46,6 @@ def train(model, device, optimizer, scheduler, loss_fn, dataloader, epoch, n_dz)
             etaphi = torch.cat([data.x[:,3][:,None], phi[:,None]], dim=1)        
             # NB: there is a problem right now for comparing hits at the +/- pi boundary
             edge_index = radius_graph(etaphi, r=deltaR, batch=data.batch, loop=True, max_num_neighbors=255)
-            # add dz graph to eta-phi graph
-            dz = data.x[:,5] 
-            tinf = (torch.ones(len(dz))*float("Inf")).to('cuda')
-            edge_index_dz = knn_graph(torch.where(data.x[:,7]!=0, dz, tinf), k=n_dz, batch=data.batch, loop=True)
-            edge_index = torch.cat([edge_index,edge_index_dz],dim=1)
             result = model(x_cont, x_cat, edge_index, data.batch)
             loss = loss_fn(result, data.x, data.y, data.batch)
             loss.backward()
@@ -82,8 +77,7 @@ if __name__ == '__main__':
     first_epoch = 0
     best_validation_loss = 10e7
     deltaR = 0.4
-    #deltaR_dz = 0.3
-    n_dz = 5
+    deltaR_dz = 0.3
 
     loss_fn = net.loss_fn
     metrics = net.metrics
@@ -91,7 +85,7 @@ if __name__ == '__main__':
     model_dir = osp.join(os.environ['PWD'],args.ckpts)
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
-
+        
     loss_log = open(model_dir+'/loss.log', 'w')
     loss_log.write('# loss log for training starting in '+strftime("%Y-%m-%d %H:%M:%S", gmtime()) + '\n')
     loss_log.write('epoch, loss, val_loss\n')
@@ -113,7 +107,7 @@ if __name__ == '__main__':
             print('Learning rate:', scheduler.state_dict()['_last_lr'][0])
 
         # compute number of batches in one epoch (one full pass over the training set)
-        train_loss = train(model, device, optimizer, scheduler, loss_fn, train_dl, epoch, n_dz)
+        train_loss = train(model, device, optimizer, scheduler, loss_fn, train_dl, epoch)
 
         # Save weights
         utils.save_checkpoint({'epoch': epoch,
@@ -124,7 +118,7 @@ if __name__ == '__main__':
                               checkpoint=model_dir)
 
         # Evaluate for one epoch on validation set
-        test_metrics, resolutions = evaluate(model, device, loss_fn, test_dl, metrics, deltaR, n_dz, model_dir)
+        test_metrics, resolutions = evaluate(model, device, loss_fn, test_dl, metrics, deltaR,deltaR_dz, model_dir)
 
         validation_loss = test_metrics['loss']
         loss_log.write('%d,%.2f,%.2f\n'%(epoch,train_loss, validation_loss))

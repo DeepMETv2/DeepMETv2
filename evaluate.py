@@ -29,7 +29,7 @@ parser.add_argument('--data', default='data',
 parser.add_argument('--ckpts', default='ckpts',
                     help="Name of the ckpts folder")
 
-def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, n_dz, model_dir):
+def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, deltaR_dz, model_dir):
     """Evaluate the model on `num_steps` batches.
 
     Args:
@@ -88,12 +88,6 @@ def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, n_dz, model_di
             etaphi = torch.cat([data.x[:,3][:,None], phi[:,None]], dim=1)
             # NB: there is a problem right now for comparing hits at the +/- pi boundary 
             edge_index = radius_graph(etaphi, r=deltaR, batch=data.batch, loop=True, max_num_neighbors=255)
-            # add dz graph to eta-phi graph
-            dz = data.x[:,5] 
-            tinf = (torch.ones(len(dz))*float("Inf")).to('cuda')
-            edge_index_dz = knn_graph(torch.where(data.x[:,7]!=0, dz, tinf), k=n_dz, batch=data.batch, loop=True)
-            edge_index = torch.cat([edge_index,edge_index_dz],dim=1)
-            
             result = model(x_cont, x_cat, edge_index, data.batch)
 
             #add dz connection
