@@ -87,6 +87,10 @@ def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, deltaR_dz, mod
         # NB: there is a problem right now for comparing hits at the +/- pi boundary 
         edge_index = radius_graph(etaphi, r=deltaR, batch=data.batch, loop=True, max_num_neighbors=255)
         result = model(x_cont, x_cat, edge_index, data.batch)
+        # change puppi weight for charged particles from exactly 0 to 1e-3 (puppi weight == 1 used as it is)
+        puppi_w = torch.where( torch.logical_and(data.x[:,9]!=0,data.x[:,7]==0.), (1e-3*torch.ones(len(data.x[:,7]))).to('cuda'), data.x[:,7] )
+        # if PF candidates have a charge, puppi weight is used as fixed weight
+        result = torch.where(data.x[:,9]!=0, puppi_w, result)
 
         #add dz connection
         #tic = time.time()

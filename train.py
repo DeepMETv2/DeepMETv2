@@ -47,6 +47,10 @@ def train(model, device, optimizer, scheduler, loss_fn, dataloader, epoch):
             # NB: there is a problem right now for comparing hits at the +/- pi boundary
             edge_index = radius_graph(etaphi, r=deltaR, batch=data.batch, loop=True, max_num_neighbors=255)
             result = model(x_cont, x_cat, edge_index, data.batch)
+            # change puppi weight for charged particles from exactly 0 to 1e-3 (puppi weight == 1 used as it is)
+            puppi_w = torch.where( torch.logical_and(data.x[:,9]!=0,data.x[:,7]==0.), (1e-3*torch.ones(len(data.x[:,7]))).to('cuda'), data.x[:,7] )
+            # if PF candidates have a charge, puppi weight is used as fixed weight
+            result = torch.where(data.x[:,9]!=0, puppi_w, result)
             loss = loss_fn(result, data.x, data.y, data.batch)
             loss.backward()
             optimizer.step()
@@ -83,6 +87,9 @@ if __name__ == '__main__':
     metrics = net.metrics
 
     model_dir = osp.join(os.environ['PWD'],args.ckpts)
+    if not os.path.exists(model_dir):
+        os.makedirs(model_dir)
+        
     loss_log = open(model_dir+'/loss.log', 'w')
     loss_log.write('# loss log for training starting in '+strftime("%Y-%m-%d %H:%M:%S", gmtime()) + '\n')
     loss_log.write('epoch, loss, val_loss\n')
