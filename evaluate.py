@@ -36,7 +36,7 @@ parser.add_argument('--mode', default='simple',
 parser.add_argument('--out', default='',
                     help="additional name info if gnn is applied to other data")
 
-def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, deltaR_dz, model_dir, out='', mode='fix'):
+def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, deltaR_dz, model_dir, out='', mode="fix"):
     """Evaluate the model on `num_steps` batches.
 
     Args:
@@ -89,8 +89,6 @@ def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, deltaR_dz, mod
                     })
                 
                 data = data.to(device)
-                x_cont = data.x[:,:7]
-                x_cat = data.x[:,8:].long()
 
                 #dz = data.x[:,5]
                 # NB: there is a problem right now for comparing hits at the +/- pi boundary                                                
@@ -102,7 +100,6 @@ def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, deltaR_dz, mod
                 #cat_edges = torch.cat([edge_index,edge_index_dz],dim=1)
                 # compute model output
                 #tic = time.time()
-
                 if mode=="dyn": edge_index = None
                 elif mode=="simple": 
                     edge_index = edge_index_simple
@@ -268,7 +265,7 @@ if __name__ == '__main__':
 
     # Define the model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = net.Net(7, 3, args.mode).to(device)
+    model = net.Net(7, 3, output_dim=1, hidden_dim=32, conv_depth=4, mode=args.mode).to(device)
     optimizer = torch.optim.AdamW(model.parameters(),lr=0.001)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.5, patience=500, threshold=0.05)
 

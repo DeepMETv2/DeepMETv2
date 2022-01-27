@@ -67,7 +67,7 @@ class GraphMETNetwork_dyn(nn.Module):
         
         # graph convolution for continuous variables
         for co_conv in self.conv_continuous:
-            emb = co_conv[1](co_conv[0](emb, knn_graph(emb, k=10, batch=batch, loop=True)))
+            emb = co_conv[1](co_conv[0](emb, knn_graph(emb, k=graph_info["k"], batch=batch, loop=True)))
 
         out = self.output(emb)
         

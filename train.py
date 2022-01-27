@@ -31,11 +31,9 @@ parser.add_argument('--data', default='data',
                     help="Name of the data folder")
 parser.add_argument('--ckpts', default='ckpts',
                     help="Name of the ckpts folder")
-parser.add_argument('--mode', default='simple',
-                    help="simple for simple fixed size GNN, fix for fixed size GNN with DeepMET structure, dyn for dynamical GNN")
 
 
-def train(model, device, optimizer, scheduler, loss_fn, dataloader, epoch, mode):
+def train(model, device, optimizer, scheduler, loss_fn, dataloader, epoch):
     model.train()
     loss_avg_arr = []
     loss_avg = utils.RunningAverage()
@@ -43,7 +41,7 @@ def train(model, device, optimizer, scheduler, loss_fn, dataloader, epoch, mode)
         for data in dataloader:
             optimizer.zero_grad()
             data = data.to(device)
-            
+
             #dz = data.x[:,5] 
             # NB: there is a problem right now for comparing hits at the +/- pi boundary
             #edge_index_phi = utils.radius_graph_v2(etaphi, r=deltaR, batch=data.batch, loop=True, max_num_neighbors=10, device=device)
@@ -52,7 +50,7 @@ def train(model, device, optimizer, scheduler, loss_fn, dataloader, epoch, mode)
             #tinf = (torch.ones(len(dz))*float("Inf")).to('cuda')
             #edge_index_dz = knn_graph(torch.where(data.x[:,7]!=0, dz, tinf), k=deltaR_dz, batch=data.batch, loop=True)
             #cat_edges = torch.cat([edge_index,edge_index_dz],dim=1)
-
+            mode = train_info["mode"]
             if mode=="dyn": edge_index = None
             elif mode=="simple": 
                 edge_index_simple = torch.arange(len(data.x[:,1]))
@@ -60,7 +58,7 @@ def train(model, device, optimizer, scheduler, loss_fn, dataloader, epoch, mode)
             elif mode=="fix":
                 phi = torch.atan2(data.x[:,1], data.x[:,0])
                 etaphi = torch.cat([data.x[:,3][:,None], phi[:,None]], dim=1) 
-                edge_index = radius_graph(etaphi, r=deltaR, batch=data.batch, loop=True, max_num_neighbors=500)
+                edge_index = radius_graph(etaphi, r=deltaR, batch=data.batch, loop=train_info["loop"], max_num_neighbors=train_info["max_num_neighbors"])
             else: print("Error: You chose non existing mode")
 
             # result = model(x_cont, x_cat, None, data.batch)
@@ -87,24 +85,29 @@ def train(model, device, optimizer, scheduler, loss_fn, dataloader, epoch, mode)
 if __name__ == '__main__':
     args = parser.parse_args()
 
+    info_handler = utils.info_handler()
+    train_info = info_handler.get_info("train")
+    net_info = info_handler.get_info("net")
+    graph_info = info_handler.get_info("graph_met_network")
+
+
     dataloaders = data_loader.fetch_dataloader(data_dir=osp.join(os.environ['PWD'],args.data), 
-                                               batch_size=120,
-                                               validation_split=.2)
+                                               batch_size=train_info["batch_size"],
+                                               validation_split=train_info["validation_split"])
     train_dl = dataloaders['train']
     test_dl = dataloaders['test']
 
     print(len(train_dl), len(test_dl))
-    
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') 
     print(device)   
     torch.cuda.set_per_process_memory_fraction(0.5)
     #model = net.Net(8, 3).to('cuda')
-    model = net.Net(7, 3, args.mode).to(device)
-    optimizer = torch.optim.AdamW(model.parameters(),lr=0.001)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.5, patience=500, threshold=0.05)
+    model = net.Net(net_info["continuous_dim"], net_info["categorical_dim"], net_info["output_dim"], net_info["hidden_dim"], net_info["conv_depth"], train_info["mode"]).to(device)
+    optimizer = torch.optim.AdamW(model.parameters(),lr=train_info["learning_rate"])
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=train_info["factor"], patience=train_info["patience"], threshold=train_info["threshold"])
     first_epoch = 0
     best_validation_loss = 10e7
-    deltaR = 0.4
+    deltaR = train_info["deltaR"]
     deltaR_dz = 10
 
     loss_fn = net.loss_fn
@@ -122,7 +125,6 @@ if __name__ == '__main__':
         with open(osp.join(model_dir, 'metrics_val_best.json')) as restore_metrics:
             best_validation_loss = json.load(restore_metrics)['loss']
     
-    output_handler = utils.output_handler()
 
     for epoch in range(first_epoch+1,31):
 
@@ -131,7 +133,7 @@ if __name__ == '__main__':
             print('Learning rate:', scheduler.state_dict()['_last_lr'][0])
 
         # compute number of batches in one epoch (one full pass over the training set)
-        training_loss = train(model, device, optimizer, scheduler, loss_fn, train_dl, epoch, args.mode)
+        training_loss = train(model, device, optimizer, scheduler, loss_fn, train_dl, epoch)
 
         # Save weights
         utils.save_checkpoint({'epoch': epoch,
@@ -142,7 +144,7 @@ if __name__ == '__main__':
                               checkpoint=model_dir)
 
         # Evaluate for one epoch on validation set
-        test_metrics, resolutions = evaluate(model, device, loss_fn, test_dl, metrics, deltaR, deltaR_dz, model_dir, out='', mode=args.mode)
+        test_metrics, resolutions = evaluate(model, device, loss_fn, test_dl, metrics, deltaR, deltaR_dz, model_dir, out='', mode=train_info["mode"])
 
         validation_loss = test_metrics['loss']
 
@@ -169,8 +171,8 @@ if __name__ == '__main__':
         utils.save(resolutions, osp.join(model_dir, 'last.resolutions'))
 
 
-
-        output_handler.add_epoch(epoch, training_loss, validation_loss)
-        output_handler.save_loss(str(model_dir))
-        output_handler.plot_loss(str(model_dir))
+        info_handler.add_info("sample", str(args.data))
+        info_handler.add_epoch(epoch, float(training_loss), float(validation_loss))
+        info_handler.save_infos(str(model_dir))
+        info_handler.plot_loss(str(model_dir))
 

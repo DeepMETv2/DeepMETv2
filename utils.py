@@ -5,9 +5,11 @@ import os.path as osp
 import os
 import shutil
 
-from numpy import pi
 import numpy as np
+import yaml
 import matplotlib.pyplot as plt
+import mplhep as hep
+plt.style.use(hep.style.CMS)
 
 import torch
 from torch_cluster import radius
@@ -106,7 +108,7 @@ def load_checkpoint(checkpoint, model, optimizer=None, scheduler=None):
     return checkpoint
 
 
-class output_handler():
+class info_handler():
     '''
     A class that handles usefule information, i.e.
         - loss function values
@@ -114,28 +116,35 @@ class output_handler():
 
     '''
     def __init__(self):
-        self.epoch = []
-        self.train_loss = []
-        self.eval_loss  = []
-        self.hyper_pars = []
+        with open(r"config.yaml") as file:
+            self.infos = yaml.load(file, yaml.FullLoader)
+        self.infos["output"]={}
+        self.infos["output"]["epoch"] = []
+        self.infos["output"]["train_loss"] = []
+        self.infos["output"]["eval_loss"] = []
 
-    def add_info(self, info):
-        self.hyper_pars.append(info)
+    def add_epoch(self, epoch, train_loss, eval_loss):
+        self.infos["output"]["epoch"].append(epoch)
+        self.infos["output"]["train_loss"].append(train_loss)
+        self.infos["output"]["eval_loss"].append(eval_loss)
 
-    def save_infos(self, checkpoint):
-        np.savetxt(checkpoint + "/hyper_params.txt", self.hyper_pars)
+    def add_info(self, info, val):
+        self.infos["output"][info] = val
 
-    def add_epoch(self, epoch, train, eval):
-        self.epoch.append(epoch)
-        self.train_loss.append(train)
-        self.eval_loss.append(eval)
+    def get_info(self, info):
+        return self.infos[info]
 
-    def save_loss(self, checkpoint):
-        to_save = np.array([self.epoch, self.train_loss, self.eval_loss]).T
-        np.savetxt(checkpoint + "/loss.txt", to_save, delimiter=",", header="epoch, train loss, evaluation loss",fmt='%s')
+    def print(self):
+        print(self.infos)
 
     def plot_loss(self, checkpoint):
-        plt.plot(self.epoch, self.train_loss, label="training loss")
-        plt.plot(self.epoch, self.eval_loss, label="evaluation loss")
+        plt.plot(self.infos["output"]["epoch"], self.infos["output"]["train_loss"], label="training loss")
+        plt.plot(self.infos["output"]["epoch"], self.infos["output"]["eval_loss"], label="evaluation loss")
         plt.legend()
-        plt.savefig(checkpoint + "/loss.pdf")
+        plt.savefig(checkpoint + "/loss.pdf")    
+
+    def save_infos(self, checkpoint):
+        with open(checkpoint + "/output.yaml", "w") as yaml_file:
+            yaml.dump(self.infos, yaml_file, default_flow_style=False)
+
+

@@ -36,22 +36,22 @@ class Net(nn.Module):
         return output
 '''
 class Net(nn.Module):
-    def __init__(self, continuous_dim, categorical_dim, mode="fix"):
+    def __init__(self, continuous_dim, categorical_dim, output_dim, hidden_dim, conv_depth, mode):
         super(Net, self).__init__()
         if mode=="simple":
             self.graphnet = GraphMETNetwork_simple(continuous_dim, categorical_dim,
-                                        output_dim=1, hidden_dim=32,
-                                        conv_depth=4)
+                                        output_dim=output_dim, hidden_dim=hidden_dim,
+                                        conv_depth=conv_depth)
 
         elif mode=="fix":
             self.graphnet = GraphMETNetwork_fix(continuous_dim, categorical_dim,
-                                        output_dim=1, hidden_dim=32,
-                                        conv_depth=4)
+                                        output_dim=output_dim, hidden_dim=hidden_dim,
+                                        conv_depth=conv_depth)
 
         elif mode=="dyn":
             self.graphnet = GraphMETNetwork_dyn(continuous_dim, categorical_dim,
-                                        output_dim=1, hidden_dim=32,
-                                        conv_depth=4)
+                                        output_dim=output_dim, hidden_dim=hidden_dim,
+                                        conv_depth=conv_depth)
         
         else: print("Error: please check if mode is fix or dyn")
     

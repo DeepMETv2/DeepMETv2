@@ -1,12 +1,13 @@
 # This config contains the essential (previously) hard-coded values, that can be changed
 # in train.py
 train:
+    # fix is GCNConv with radius_graph, dyn is EdgeConv, simple is only self-connected
+    mode: fix     # fix, dyn or simple
+
     batch_size: 120
-    validation_split: 0.2
-
-    continuous_dim: 7
-    categorical_dim: 3
-
+    validation_split: 0.9
+        
+    # optimizer: AdamW
     learning_rate: 0.001
 
     # scheduler: ReduceLROnPlateau
@@ -14,13 +15,18 @@ train:
     patience: 500
     threshold: 0.05
     
+    max_epoch: 30
+    
     # edge_index: radius_graph
     deltaR: 0.4
-    max_num_neighbors: 500
+    max_num_neighbors: 10
+    loop: True
     
     
 # net.py
 net:
+    continuous_dim: 7
+    categorical_dim: 3
     output_dim: 1
     hidden_dim: 32
     conv_depth: 4
@@ -31,13 +37,6 @@ graph_met_network:
     # for knn_graph
     k: 10
 
-
-# TRAINING PARAMETERS
-trained_epochs: []
-train_loss: []
-eval_loss: []
-
-
 # variables and functions that are not changed often -> therefore you have to change them manually both: Here and in the python file
 # in train.py
 
@@ -46,23 +45,6 @@ type_of_net:
     edge_index: radius_graph
     Embedding: True
     inputs: ["pX", "pY", "pT", "eta", "d0", "dz", "mass", "puppiWeight", "pdgId", "charge", "fromPV"]
-    continuous_dim: 7
-    categorical_dim: 3
 
 # training
-trained_epochs: []
-train_loss: []
-eval_loss: []
 loss: MSE
-
-
- 
-ReduceLROnPlateau:
-    factor: 0.5
-    patience: 500
-    threshold: 0.05
-
-
-
-GCNConv:
-
