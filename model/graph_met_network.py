@@ -75,9 +75,9 @@ class GraphMETNetwork_dyn(nn.Module):
     
 
 
-class GraphMETNetwork_fix(nn.Module):
+class GraphMETNetwork_fix_emb(nn.Module):
     def __init__ (self, continuous_dim, cat_dim, output_dim=1, hidden_dim=32, conv_depth=2):
-        super(GraphMETNetwork_fix, self).__init__()
+        super(GraphMETNetwork_fix_emb, self).__init__()
         
         self.embed_charge = nn.Embedding(3, hidden_dim//4)
         self.embed_pdgid = nn.Embedding(7, hidden_dim//4)
@@ -142,9 +142,9 @@ class GraphMETNetwork_fix(nn.Module):
 
 
 
-class GraphMETNetwork_simple(nn.Module):
+class GraphMETNetwork_fix_noemb(nn.Module):
     def __init__ (self, continuous_dim, cat_dim, output_dim=1, hidden_dim=32, conv_depth=2):
-        super(GraphMETNetwork_simple, self).__init__()
+        super(GraphMETNetwork_fix_noemb, self).__init__()
         dim = 11
 
         self.conv_continuous = nn.ModuleList()

@@ -1,0 +1,98 @@
+graph_met_network:
+  k: 10
+loss: MSE
+net:
+  categorical_dim: 3
+  continuous_dim: 7
+  conv_depth: 4
+  hidden_dim: 32
+  output_dim: 1
+output:
+  epoch:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  - 8
+  - 9
+  - 10
+  eval_loss:
+  - 2161.2049417550224
+  - 2153.04419241769
+  - 1906.1345662144251
+  - 1843.4415531703405
+  - 1745.8362540108817
+  - 1722.1811389160157
+  - 1715.9890583147321
+  - 1706.381942225865
+  - 1700.0030128696988
+  - 1696.8461411830358
+  eval_time_per_epoch:
+  - 100.8361542224884
+  - 100.34612989425659
+  - 100.70662760734558
+  - 100.48767900466919
+  - 100.75323271751404
+  - 100.61030983924866
+  - 100.5925133228302
+  - 100.7027735710144
+  - 100.7594792842865
+  - 100.64458584785461
+  sample: /local/scratch/ssd/nshadskiy/DeepMET_data/znunu_60k_fix_dxyz/
+  train_loss:
+  - 2172.536422729492
+  - 2136.908204803467
+  - 1947.1568192836216
+  - 1877.1580754961287
+  - 1780.7013786097934
+  - 1732.021389705113
+  - 1718.9545303344726
+  - 1706.457398463658
+  - 1700.3196334838867
+  - 1692.5008865574428
+  train_time_per_epoch:
+  - 542.7850959300995
+  - 544.7714376449585
+  - 544.7328670024872
+  - 545.0492084026337
+  - 545.0582659244537
+  - 545.666693687439
+  - 544.5871710777283
+  - 545.3258736133575
+  - 545.6198124885559
+  - 545.0654420852661
+train:
+  batch_size: 120
+  ckpt: final/no_embedding
+  dataset: /local/scratch/ssd/nshadskiy/DeepMET_data/znunu_60k_fix_dxyz/
+  deltaR: 0.4
+  factor: 0.5
+  learning_rate: 0.001
+  loop: true
+  max_epoch: 30
+  max_num_neighbors: 500
+  mode:
+    embedding: 0
+    fixed: 1
+  patience: 500
+  threshold: 0.05
+  validation_split: 0.2
+type_of_net:
+  Embedding: true
+  edge_index: radius_graph
+  inputs:
+  - pX
+  - pY
+  - pT
+  - eta
+  - d0
+  - dz
+  - mass
+  - puppiWeight
+  - pdgId
+  - charge
+  - fromPV
+  update: GCNConv

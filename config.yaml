@@ -1,11 +1,12 @@
 # This config contains the essential (previously) hard-coded values, that can be changed
 # in train.py
 train:
-    # fix is GCNConv with radius_graph, dyn is EdgeConv, simple is only self-connected
-    mode: fix     # fix, dyn or simple
+    mode: 
+        fixed: 1
+        embedding: 0
 
     batch_size: 120
-    validation_split: 0.9
+    validation_split: 0.2
         
     # optimizer: AdamW
     learning_rate: 0.001
@@ -19,8 +20,12 @@ train:
     
     # edge_index: radius_graph
     deltaR: 0.4
-    max_num_neighbors: 10
+    max_num_neighbors: 500
     loop: True
+    
+    dataset: /local/scratch/ssd/nshadskiy/DeepMET_data/znunu_60k_fix_dxyz/
+
+    ckpt: final/test
     
     
 # net.py

@@ -115,18 +115,22 @@ class info_handler():
         - Hyperparameters
 
     '''
-    def __init__(self):
-        with open(r"config.yaml") as file:
+    def __init__(self, config):
+        with open(config, "r") as file:
             self.infos = yaml.load(file, yaml.FullLoader)
         self.infos["output"]={}
         self.infos["output"]["epoch"] = []
         self.infos["output"]["train_loss"] = []
         self.infos["output"]["eval_loss"] = []
+        self.infos["output"]["train_time_per_epoch"] = []
+        self.infos["output"]["eval_time_per_epoch"] = []
 
-    def add_epoch(self, epoch, train_loss, eval_loss):
+    def add_epoch(self, epoch, train_loss, eval_loss, train_time, eval_time):
         self.infos["output"]["epoch"].append(epoch)
         self.infos["output"]["train_loss"].append(train_loss)
         self.infos["output"]["eval_loss"].append(eval_loss)
+        self.infos["output"]["train_time_per_epoch"].append(train_time)
+        self.infos["output"]["eval_time_per_epoch"].append(eval_time)
 
     def add_info(self, info, val):
         self.infos["output"][info] = val

@@ -1,0 +1,56 @@
+graph_met_network:
+  k: 10
+loss: MSE
+net:
+  categorical_dim: 3
+  continuous_dim: 7
+  conv_depth: 4
+  hidden_dim: 32
+  output_dim: 1
+output:
+  epoch:
+  - 1
+  - 2
+  eval_loss:
+  - 1883.0592080552237
+  - 1841.5138022749766
+  eval_time_per_epoch:
+  - 854.4749689102173
+  - 854.7555847167969
+  sample: /local/scratch/ssd/nshadskiy/DeepMET_data/znunu_60k_fix_dxyz/
+  train_loss:
+  - 1966.322706809044
+  - 1842.4623659420013
+  train_time_per_epoch:
+  - 4961.651498794556
+  - 4959.218943357468
+train:
+  batch_size: 15
+  ckpt: final/DeltaR15
+  dataset: /local/scratch/ssd/nshadskiy/DeepMET_data/znunu_60k_fix_dxyz/
+  deltaR: 1.5
+  factor: 0.5
+  learning_rate: 0.001
+  loop: true
+  max_epoch: 30
+  max_num_neighbors: 500
+  mode: fix
+  patience: 500
+  threshold: 0.05
+  validation_split: 0.2
+type_of_net:
+  Embedding: true
+  edge_index: radius_graph
+  inputs:
+  - pX
+  - pY
+  - pT
+  - eta
+  - d0
+  - dz
+  - mass
+  - puppiWeight
+  - pdgId
+  - charge
+  - fromPV
+  update: GCNConv

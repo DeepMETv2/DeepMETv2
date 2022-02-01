@@ -26,17 +26,12 @@ plt.style.use(hep.style.CMS)
 parser = argparse.ArgumentParser()
 parser.add_argument('--restore_file', default='best', help="name of the file in --model_dir \
                      containing weights to load")
-parser.add_argument('--data', default='data',
-                    help="Name of the data folder")
-parser.add_argument('--ckpts', default='ckpts',
-                    help="Name of the ckpts folder")
-parser.add_argument('--mode', default='simple',
-                    help="simple for simple fixed size GNN, fix for fixed size GNN with DeepMET structure, dyn for dynamical GNN")
-
+parser.add_argument('--config', default='config.yaml',
+                    help="path to config")
 parser.add_argument('--out', default='',
                     help="additional name info if gnn is applied to other data")
 
-def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, deltaR_dz, model_dir, out='', mode="fix"):
+def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, deltaR_dz, model_dir, out='', train_info = {"mode":{"fixed":1, "embedding":1}, "max_num_neighbors": 500}):
     """Evaluate the model on `num_steps` batches.
 
     Args:
@@ -75,7 +70,7 @@ def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, deltaR_dz, mod
             'deepMETResolution': 'DeepMETResolution',
             'MET': 'Graph MET'
         }
-
+        start_time = time.time()
         # compute metrics over the dataset
         with tqdm(total=len(dataloader)) as t:
             for data in dataloader:
@@ -100,16 +95,20 @@ def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, deltaR_dz, mod
                 #cat_edges = torch.cat([edge_index,edge_index_dz],dim=1)
                 # compute model output
                 #tic = time.time()
-                if mode=="dyn": edge_index = None
-                elif mode=="simple": 
-                    edge_index = edge_index_simple
-                    edge_index_simple = torch.arange(len(data.x[:,1]))
-                    edge_index = edge_index_simple.expand(2, len(data.x[:,1])).to(device)
-                elif mode=="fix": 
-                    phi = torch.atan2(data.x[:,1], data.x[:,0])
-                    etaphi = torch.cat([data.x[:,3][:,None], phi[:,None]], dim=1)
-                    edge_index = radius_graph(etaphi, r=deltaR, batch=data.batch, loop=True, max_num_neighbors=500)
-                else: print("Error: You chose non existing mode")
+
+                fixed = train_info["mode"]["fixed"]
+
+                if fixed:
+                    if train_info["max_num_neighbors"] == 0:
+                        edge_index_simple = torch.arange(len(data.x[:,1]))
+                        edge_index = edge_index_simple.expand(2, len(data.x[:,1])).to(device)
+                    else:
+                        phi = torch.atan2(data.x[:,1], data.x[:,0])
+                        etaphi = torch.cat([data.x[:,3][:,None], phi[:,None]], dim=1) 
+                        edge_index = radius_graph(etaphi, r=deltaR, batch=data.batch, loop=train_info["loop"], max_num_neighbors=train_info["max_num_neighbors"])
+
+                if not fixed:
+                    edge_index = None
 
                 result = model(data.x, edge_index=edge_index, batch=data.batch)
                 #toc = time.time()
@@ -125,7 +124,7 @@ def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, deltaR_dz, mod
                 loss_avg_arr.append(loss.cpu().item())
                 
                 t.update()
-
+        evaluation_time = time.time() - start_time
         # compute mean of all metrics in summary
         bin_edges=np.arange(0,400,20)
         inds=np.digitize(qT_arr,bin_edges)
@@ -247,7 +246,7 @@ def evaluate(model, device, loss_fn, dataloader, metrics, deltaR, deltaR_dz, mod
         metrics_string = " ; ".join("{}: {:05.3f}".format(k, v)
                                     for k, v in metrics_mean.items())
         print("- Eval metrics : " + metrics_string)
-        return metrics_mean, resolution_hists
+        return metrics_mean, resolution_hists, evaluation_time
 
 
 if __name__ == '__main__':
@@ -256,22 +255,23 @@ if __name__ == '__main__':
     """
     # Load the parameters
     args = parser.parse_args()
+    train_info = info_handler.get_info("train")
 
     # fetch dataloaders
-    dataloaders = data_loader.fetch_dataloader(data_dir=osp.join(os.environ['PWD'],args.data), 
+    dataloaders = data_loader.fetch_dataloader(data_dir=osp.join(os.environ['PWD'],train_info["dataset"]), 
                                                batch_size=50, 
                                                validation_split=.2)
     test_dl = dataloaders['test']
 
     # Define the model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = net.Net(7, 3, output_dim=1, hidden_dim=32, conv_depth=4, mode=args.mode).to(device)
+    model = net.Net(7, 3, output_dim=1, hidden_dim=32, conv_depth=4, mode=mode).to(device)
     optimizer = torch.optim.AdamW(model.parameters(),lr=0.001)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.5, patience=500, threshold=0.05)
 
     loss_fn = net.loss_fn
     metrics = net.metrics
-    model_dir = osp.join(os.environ['PWD'],args.ckpts)
+    model_dir = osp.join(os.environ['PWD'],train_info["ckpt"])
     deltaR = 0.4
     deltaR_dz = 10
 
@@ -285,7 +285,7 @@ if __name__ == '__main__':
             best_validation_loss = json.load(restore_metrics)['loss']
 
     # Evaluate
-    test_metrics, resolutions = evaluate(model, device, loss_fn, test_dl, metrics, deltaR, deltaR_dz, model_dir, args.out)
+    test_metrics, resolutions, evaluation_time = evaluate(model, device, loss_fn, test_dl, metrics, deltaR, deltaR_dz, model_dir, args.out, train_info)
     validation_loss = test_metrics['loss']
     is_best = (validation_loss<best_validation_loss)
 

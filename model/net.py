@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch_scatter import scatter_add
 from model.dynamic_reduction_network import DynamicReductionNetwork
-from model.graph_met_network import GraphMETNetwork_fix, GraphMETNetwork_dyn, GraphMETNetwork_simple
+from model.graph_met_network import GraphMETNetwork_fix_emb, GraphMETNetwork_fix_noemb, GraphMETNetwork_dyn
 
 '''
 class Net(nn.Module):
@@ -36,25 +36,26 @@ class Net(nn.Module):
         return output
 '''
 class Net(nn.Module):
-    def __init__(self, continuous_dim, categorical_dim, output_dim, hidden_dim, conv_depth, mode):
+    def __init__(self, continuous_dim, categorical_dim, output_dim, hidden_dim, conv_depth, mode={"fixed":1, "embedding":1}):
         super(Net, self).__init__()
-        if mode=="simple":
-            self.graphnet = GraphMETNetwork_simple(continuous_dim, categorical_dim,
-                                        output_dim=output_dim, hidden_dim=hidden_dim,
-                                        conv_depth=conv_depth)
 
-        elif mode=="fix":
-            self.graphnet = GraphMETNetwork_fix(continuous_dim, categorical_dim,
-                                        output_dim=output_dim, hidden_dim=hidden_dim,
-                                        conv_depth=conv_depth)
-
-        elif mode=="dyn":
-            self.graphnet = GraphMETNetwork_dyn(continuous_dim, categorical_dim,
-                                        output_dim=output_dim, hidden_dim=hidden_dim,
-                                        conv_depth=conv_depth)
-        
-        else: print("Error: please check if mode is fix or dyn")
-    
+        if mode["fixed"]:
+            if mode["embedding"]:
+                self.graphnet = GraphMETNetwork_fix_emb(continuous_dim, categorical_dim,
+                                            output_dim=output_dim, hidden_dim=hidden_dim,
+                                            conv_depth=conv_depth)
+            if not mode["embedding"]:
+                self.graphnet = GraphMETNetwork_fix_noemb(continuous_dim, categorical_dim,
+                                            output_dim=output_dim, hidden_dim=hidden_dim,
+                                            conv_depth=conv_depth)
+        if not mode["fixed"]:
+            if mode["embedding"]:
+                self.graphnet = GraphMETNetwork_dyn(continuous_dim, categorical_dim,
+                                            output_dim=output_dim, hidden_dim=hidden_dim,
+                                            conv_depth=conv_depth)
+            if not mode["embedding"]:
+                print("not implemented yet")
+            
     #def forward(self, x_cont, x_cat, edge_index, batch):
     def forward(self, x, edge_index, batch):
         # weights = self.graphnet(x_cont, x_cat, edge_index, batch)
