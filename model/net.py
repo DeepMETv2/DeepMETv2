@@ -36,23 +36,23 @@ class Net(nn.Module):
         return output
 '''
 class Net(nn.Module):
-    def __init__(self, continuous_dim, categorical_dim, output_dim, hidden_dim, conv_depth, mode={"fixed":1, "embedding":1}):
+    def __init__(self, continuous_dim, categorical_dim, output_dim, hidden_dim, conv_depth, mode={"fixed":1, "embedding":1}, k=10, activation_function = nn.ELU()):
         super(Net, self).__init__()
 
         if mode["fixed"]:
             if mode["embedding"]:
                 self.graphnet = GraphMETNetwork_fix_emb(continuous_dim, categorical_dim,
                                             output_dim=output_dim, hidden_dim=hidden_dim,
-                                            conv_depth=conv_depth)
+                                            conv_depth=conv_depth, activation_function = activation_function)
             if not mode["embedding"]:
                 self.graphnet = GraphMETNetwork_fix_noemb(continuous_dim, categorical_dim,
                                             output_dim=output_dim, hidden_dim=hidden_dim,
-                                            conv_depth=conv_depth)
+                                            conv_depth=conv_depth, activation_function = activation_function)
         if not mode["fixed"]:
             if mode["embedding"]:
                 self.graphnet = GraphMETNetwork_dyn(continuous_dim, categorical_dim,
                                             output_dim=output_dim, hidden_dim=hidden_dim,
-                                            conv_depth=conv_depth)
+                                            conv_depth=conv_depth, k=k, activation_function = activation_function)
             if not mode["embedding"]:
                 print("not implemented yet")
             

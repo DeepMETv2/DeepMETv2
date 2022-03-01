@@ -20,21 +20,21 @@ def future_savez(i):
         ]
 
         event_list = []
-        n_particles=len(events.JetPFCands.pt[i])
+        n_particles=len(events.PFCands.pt[i])
         #print(n_particles)
 
         for j in range(n_particles):
                 particle_list=[
-                        events.JetPFCands.pt[i][j],
-                        events.JetPFCands.eta[i][j],
-                        events.JetPFCands.phi[i][j],
-                        events.JetPFCands.mass[i][j],
-                        events.JetPFCands.d0[i][j],
-                        events.JetPFCands.dz[i][j],
-                        events.JetPFCands.pdgId[i][j],
-                        events.JetPFCands.charge[i][j],
-                        events.JetPFCands.pvAssocQuality[i][j],
-                        events.JetPFCands.puppiWeight[i][j]
+                        events.PFCands.pt[i][j],
+                        events.PFCands.eta[i][j],
+                        events.PFCands.phi[i][j],
+                        events.PFCands.mass[i][j],
+                        events.PFCands.d0[i][j],
+                        events.PFCands.dz[i][j],
+                        events.PFCands.pdgId[i][j],
+                        events.PFCands.charge[i][j],
+                        events.PFCands.pvAssocQuality[i][j],
+                        events.PFCands.puppiWeight[i][j]
                 ]
                 event_list.append(particle_list)
         npz_file=os.environ['PWD']+'/data/raw/'+dataset+'_event'+str(i)
@@ -48,8 +48,8 @@ if __name__ == '__main__':
         (options, args) = parser.parse_args()
 
         dataset=options.dataset
-        #fname = '/cms/scratch/matteoc/CMSSW_10_2_22/src/PhysicsTools/NanoMET/test/'+options.dataset+'.root'
-        fname = 'root://cms-xrdr.private.lo:2094//xrd/store/user/'+os.environ['USER']+'/'+dataset+'.root'
+        fname = '/cms/scratch/matteoc/CMSSW_10_2_22/src/PhysicsTools/NanoMET/test/'+options.dataset+'.root'
+        #fname = 'root://cms-xrdr.private.lo:2094//xrd/store/user/'+os.environ['USER']+'/'+dataset+'.root'
         print('Opening file:',fname)
 
         events = NanoEvents.from_file(fname)

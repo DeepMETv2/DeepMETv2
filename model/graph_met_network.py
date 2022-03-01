@@ -9,7 +9,7 @@ from torch_geometric.nn.conv import GraphConv, EdgeConv, GCNConv
 from torch_cluster import radius_graph, knn_graph
 
 class GraphMETNetwork_dyn(nn.Module):
-    def __init__ (self, continuous_dim, cat_dim, output_dim=1, hidden_dim=32, conv_depth=2):
+    def __init__ (self, continuous_dim, cat_dim, output_dim=1, hidden_dim=32, conv_depth=2, k=10, activation_function = nn.ELU()):
         super(GraphMETNetwork_dyn, self).__init__()
         
         self.embed_charge = nn.Embedding(3, hidden_dim//4)
@@ -17,17 +17,17 @@ class GraphMETNetwork_dyn(nn.Module):
         self.embed_pv = nn.Embedding(4, hidden_dim//4)
         
         self.embed_continuous = nn.Sequential(nn.Linear(continuous_dim,hidden_dim//2),
-                                              nn.ELU(),
+                                              activation_function,
                                               #nn.BatchNorm1d(hidden_dim//2) # uncomment if it starts overtraining
                                              )
 
         self.embed_categorical = nn.Sequential(nn.Linear(3*hidden_dim//4,hidden_dim//2),
-                                               nn.ELU(),                                               
+                                               activation_function,                                               
                                                #nn.BatchNorm1d(hidden_dim//2)
                                               )
 
         self.encode_all = nn.Sequential(nn.Linear(hidden_dim, hidden_dim),
-                                        nn.ELU()
+                                        activation_function
                                        )
         self.bn_all = nn.BatchNorm1d(hidden_dim)
         
@@ -40,11 +40,13 @@ class GraphMETNetwork_dyn(nn.Module):
         
 
         self.output = nn.Sequential(nn.Linear(hidden_dim, hidden_dim//2),
-                                    nn.ELU(),
+                                    activation_function,
                                     nn.Linear(hidden_dim//2, output_dim)
                                    )
         
         self.pdgs = [1, 2, 11, 13, 22, 130, 211]
+
+        self.k = k
         
     
     def forward(self, x, edge_index, batch):
@@ -67,7 +69,7 @@ class GraphMETNetwork_dyn(nn.Module):
         
         # graph convolution for continuous variables
         for co_conv in self.conv_continuous:
-            emb = co_conv[1](co_conv[0](emb, knn_graph(emb, k=graph_info["k"], batch=batch, loop=True)))
+            emb = co_conv[1](co_conv[0](emb, knn_graph(emb, k=self.k, batch=batch, loop=True)))
 
         out = self.output(emb)
         
@@ -76,7 +78,7 @@ class GraphMETNetwork_dyn(nn.Module):
 
 
 class GraphMETNetwork_fix_emb(nn.Module):
-    def __init__ (self, continuous_dim, cat_dim, output_dim=1, hidden_dim=32, conv_depth=2):
+    def __init__ (self, continuous_dim, cat_dim, output_dim=1, hidden_dim=32, conv_depth=2, activation_function = nn.ELU()):
         super(GraphMETNetwork_fix_emb, self).__init__()
         
         self.embed_charge = nn.Embedding(3, hidden_dim//4)
@@ -84,17 +86,17 @@ class GraphMETNetwork_fix_emb(nn.Module):
         self.embed_pv = nn.Embedding(4, hidden_dim//4)
         
         self.embed_continuous = nn.Sequential(nn.Linear(continuous_dim,hidden_dim//2),
-                                              nn.ELU(),
+                                              activation_function,
                                               #nn.BatchNorm1d(hidden_dim//2) # uncomment if it starts overtraining
                                              )
 
         self.embed_categorical = nn.Sequential(nn.Linear(3*hidden_dim//4,hidden_dim//2),
-                                               nn.ELU(),                                               
+                                               activation_function,                                               
                                                #nn.BatchNorm1d(hidden_dim//2)
                                               )
 
         self.encode_all = nn.Sequential(nn.Linear(hidden_dim, hidden_dim),
-                                        nn.ELU()
+                                        activation_function,
                                        )
         self.bn_all = nn.BatchNorm1d(hidden_dim)
         
@@ -105,7 +107,7 @@ class GraphMETNetwork_fix_emb(nn.Module):
         
 
         self.output = nn.Sequential(nn.Linear(hidden_dim, hidden_dim//2),
-                                    nn.ELU(),
+                                    activation_function,
                                     nn.Linear(hidden_dim//2, output_dim)
                                    )
         
@@ -143,7 +145,7 @@ class GraphMETNetwork_fix_emb(nn.Module):
 
 
 class GraphMETNetwork_fix_noemb(nn.Module):
-    def __init__ (self, continuous_dim, cat_dim, output_dim=1, hidden_dim=32, conv_depth=2):
+    def __init__ (self, continuous_dim, cat_dim, output_dim=1, hidden_dim=32, conv_depth=2, activation_function = nn.ELU()):
         super(GraphMETNetwork_fix_noemb, self).__init__()
         dim = 11
 
@@ -153,7 +155,7 @@ class GraphMETNetwork_fix_noemb(nn.Module):
             self.conv_continuous.append(GCNConv(hidden_dim, hidden_dim))
 
         self.output = nn.Sequential(nn.Linear(hidden_dim, hidden_dim//2),
-                                    nn.ELU(),
+                                    activation_function,
                                     nn.Linear(hidden_dim//2, output_dim)
                                    )
 

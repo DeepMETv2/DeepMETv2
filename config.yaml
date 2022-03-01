@@ -35,6 +35,7 @@ net:
     output_dim: 1
     hidden_dim: 32
     conv_depth: 4
+    activation_func: nn.ELU()
     
 
 # graph_met_network.py
@@ -48,7 +49,6 @@ graph_met_network:
 type_of_net: 
     update: GCNConv
     edge_index: radius_graph
-    Embedding: True
     inputs: ["pX", "pY", "pT", "eta", "d0", "dz", "mass", "puppiWeight", "pdgId", "charge", "fromPV"]
 
 # training

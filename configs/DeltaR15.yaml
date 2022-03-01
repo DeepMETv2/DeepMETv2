@@ -1,10 +1,11 @@
 # This config contains the essential (previously) hard-coded values, that can be changed
 # in train.py
 train:
-    # fix is GCNConv with radius_graph, dyn is EdgeConv, simple is only self-connected
-    mode: fix     # fix, dyn or simple
-
-    batch_size: 15
+    mode: 
+        fixed: 1
+        embedding: 1
+        
+    batch_size: 12
     validation_split: 0.2
         
     # optimizer: AdamW

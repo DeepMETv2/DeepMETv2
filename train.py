@@ -116,7 +116,7 @@ if __name__ == '__main__':
     print(device)   
     torch.cuda.set_per_process_memory_fraction(0.5)
     #model = net.Net(8, 3).to('cuda')
-    model = net.Net(net_info["continuous_dim"], net_info["categorical_dim"], net_info["output_dim"], net_info["hidden_dim"], net_info["conv_depth"], train_info["mode"]).to(device)
+    model = net.Net(net_info["continuous_dim"], net_info["categorical_dim"], net_info["output_dim"], net_info["hidden_dim"], net_info["conv_depth"], train_info["mode"], graph_info["k"], nn.ELU()).to(device)
     optimizer = torch.optim.AdamW(model.parameters(),lr=train_info["learning_rate"])
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=train_info["factor"], patience=train_info["patience"], threshold=train_info["threshold"])
     first_epoch = 0
