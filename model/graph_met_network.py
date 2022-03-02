@@ -153,7 +153,13 @@ class GraphMETNetwork_fix_emb(nn.Module):
         dscb_input = torch.transpose(dscb_input, 0,1)
         #dscb_input = torch.reshape(dscb_input,(-1,))
         #print(dscb_input.size())
-        dscb_layer = nn.Sequential(nn.Linear(32,5), nn.ELU()).to('cuda')
+        dscb_layer = nn.Sequential(nn.Linear(32,32), 
+                                    nn.BatchNorm1d(32,32), nn.ELU(),
+                                    nn.Linear(32,32), 
+                                    nn.BatchNorm1d(32,32), nn.ELU(),
+                                    nn.Linear(32,32), 
+                                    nn.BatchNorm1d(32,32), nn.ELU(),
+                                    nn.Linear(32,5), nn.Softplus()).to('cuda')
         dscb_out = torch.transpose(dscb_layer(dscb_input),0,1)
         #print(dscb_out)
 

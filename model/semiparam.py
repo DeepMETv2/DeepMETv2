@@ -50,7 +50,18 @@ def naiive_vectorized(x, mu, sigma, alphaL, nL, alphaR, nR):
     return result/norm
 
 def smarter(x, mu, sigma, alphaL, nL, alphaR, nR):
+
+    alphaL = alphaL+1
+    alphaR = alphaR+1
+
+    nL = nL+1.001
+    nR = nR+1.001
+
+    sigma = sigma+1e-6
+
     t = (x-mu)/sigma
+
+    #print(x)
 
     result = torch.empty_like(x)
 
@@ -67,7 +78,7 @@ def smarter(x, mu, sigma, alphaL, nL, alphaR, nR):
     fact1L = alphaLL/nLL
     fact2L = nLL/alphaLL - alphaLL - tL
     result[left] = torch.exp(-0.5*alphaLL*alphaLL) * torch.pow(fact1L * fact2L, -nLL)
-
+    #print(left, middle, right)
     nRR = nR[right]
     tR = t[right]
     alphaRR = alphaR[right]
@@ -75,9 +86,11 @@ def smarter(x, mu, sigma, alphaL, nL, alphaR, nR):
     fact2R = nRR/alphaRR - alphaRR + tR
     result[right] = torch.exp(-0.5*alphaRR*alphaRR) * torch.pow(fact1R * fact2R, -nRR)
 
+    #print("result0: ", result)
     norm = double_crystalball_norm(mu, sigma, alphaL, nL, alphaR, nR)
     result = result/norm
-
+    #print("norm: ", norm)
+    #print("normed result: ", result)
     small = result < minval
     result[small] = minval
 
