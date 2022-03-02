@@ -7,7 +7,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch_scatter import scatter_add
 from model.dynamic_reduction_network import DynamicReductionNetwork
-from model.graph_met_network import GraphMETNetwork
+from model.graph_met_network import GraphMETNetwork_fix_emb, GraphMETNetwork_fix_noemb, GraphMETNetwork_dyn
+
+from model.semiparam import smarter, double_crystalball_norm
 
 '''
 class Net(nn.Module):
@@ -36,29 +38,63 @@ class Net(nn.Module):
         return output
 '''
 class Net(nn.Module):
-    def __init__(self, continuous_dim, categorical_dim):
+    def __init__(self, continuous_dim, categorical_dim, output_dim, hidden_dim, conv_depth, mode={"fixed":1, "embedding":1}, k=10, activation_function = nn.ELU()):
         super(Net, self).__init__()
-        self.graphnet = GraphMETNetwork(continuous_dim, categorical_dim,
-                                        output_dim=1, hidden_dim=32,
-                                        conv_depth=2)
-    
-    def forward(self, x_cont, x_cat, edge_index, batch):
-        weights = self.graphnet(x_cont, x_cat, edge_index, batch)
-        return torch.sigmoid(weights)
+
+        if mode["fixed"]:
+            if mode["embedding"]:
+                self.graphnet = GraphMETNetwork_fix_emb(continuous_dim, categorical_dim,
+                                            output_dim=output_dim, hidden_dim=hidden_dim,
+                                            conv_depth=conv_depth, activation_function = activation_function)
+            if not mode["embedding"]:
+                self.graphnet = GraphMETNetwork_fix_noemb(continuous_dim, categorical_dim,
+                                            output_dim=output_dim, hidden_dim=hidden_dim,
+                                            conv_depth=conv_depth, activation_function = activation_function)
+        if not mode["fixed"]:
+            if mode["embedding"]:
+                self.graphnet = GraphMETNetwork_dyn(continuous_dim, categorical_dim,
+                                            output_dim=output_dim, hidden_dim=hidden_dim,
+                                            conv_depth=conv_depth, k=k, activation_function = activation_function)
+            if not mode["embedding"]:
+                print("not implemented yet")
+            
+    #def forward(self, x_cont, x_cat, edge_index, batch):
+    def forward(self, x, edge_index, batch):
+        # weights = self.graphnet(x_cont, x_cat, edge_index, batch)
+        weights, dscb_params = self.graphnet(x, edge_index, batch)
+        return torch.sigmoid(weights), dscb_params
+        #return weights
 
 def loss_fn(weights, prediction, truth, batch):
+
     px=prediction[:,0]
     py=prediction[:,1]
     true_px=truth[:,0] 
-    true_py=truth[:,1]
-    #print('HT', truth[:,10])
+    true_py=truth[:,1]      
     METx = scatter_add(weights*px, batch)
     METy = scatter_add(weights*py, batch)
-    #tzero = torch.zeros(prediction.shape[0]).to('cuda')
-    #BCE = nn.BCELoss()
-    #prediction[:,]: pX,pY,pT,eta,d0,dz,mass,puppiWeight,pdgId,charge,fromPV
-    loss=0.5*( ( METx + true_px)**2 + ( METy + true_py)**2 ).mean() 
-    #+ 5000*BCE(torch.where(prediction[:,9]==0, tzero, weights), torch.where(prediction[:,9]==0, tzero, prediction[:,7]))
+
+    tzero = torch.zeros(prediction.shape[0]).to('cuda')
+    BCE = nn.BCELoss()
+    # BCE checks charged particles to match puppi weight 
+    loss=0.5*( ( METx + true_px)**2 + ( METy + true_py)**2 ).mean()# + 5000*BCE(torch.where(prediction[:,9]==0, tzero, weights), torch.where(prediction[:,9]==0, tzero, prediction[:,7]))
+    return loss
+
+def dscb_loss_fn(weights, prediction, truth, batch, dscb_params):
+    true_px=truth[:,0] 
+    true_py=truth[:,1]
+    true_vector=torch.stack((true_px, true_py), dim=1)
+
+    px=prediction[:,0]
+    py=prediction[:,1]
+    METx = -scatter_add(weights*px, batch)
+    METy = -scatter_add(weights*py, batch)
+    vector = torch.stack((METx, METy),dim=1)
+
+    response = getdot(vector,true_vector)/getdot(true_vector,true_vector)
+    means = torch.ones(response.size()).to('cuda')
+    #print(response, means, dscb_params)
+    loss = -torch.log(smarter(response, means, *dscb_params))
     return loss
 
 def getdot(vx, vy):
@@ -92,6 +128,8 @@ def u_perp_par_loss(weights, prediction, truth, batch):
 def resolution(weights, prediction, truth, batch):
     
     def getdot(vx, vy):
+        #print("getdot: ", vx, vy)
+        #print(vx.size(), vy.size())
         return torch.einsum('bi,bi->b',vx,vy)
     def getscale(vx):
         return torch.sqrt(getdot(vx,vx))
@@ -128,9 +166,12 @@ def resolution(weights, prediction, truth, batch):
     
     px=prediction[:,0]
     py=prediction[:,1]
-    #weights = torch.where( prediction[:,9] == 10, weights , prediction[:,7] )
+    #print(px, py)
+    #print(weights)
+    #print("len px, py, weights: ", (px.size()), (py.size()), (weights.size()))
     METx = scatter_add(weights*px, batch)
     METy = scatter_add(weights*py, batch)
+    #print("Metx, Mety: ", METx.size(), METy.size())
     # predicted MET/qT
     v_MET=torch.stack((METx, METy),dim=1)
 

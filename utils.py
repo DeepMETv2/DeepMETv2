@@ -5,7 +5,14 @@ import os.path as osp
 import os
 import shutil
 
+import numpy as np
+import yaml
+import matplotlib.pyplot as plt
+import mplhep as hep
+plt.style.use(hep.style.CMS)
+
 import torch
+from torch_cluster import radius
 
 class RunningAverage():
     """A simple class that maintains the running average of a quantity
@@ -99,3 +106,49 @@ def load_checkpoint(checkpoint, model, optimizer=None, scheduler=None):
         scheduler.load_state_dict(checkpoint['sched_dict'])
 
     return checkpoint
+
+
+class info_handler():
+    '''
+    A class that handles usefule information, i.e.
+        - loss function values
+        - Hyperparameters
+
+    '''
+    def __init__(self, config):
+        with open(config, "r") as file:
+            self.infos = yaml.load(file, yaml.FullLoader)
+        self.infos["output"]={}
+        self.infos["output"]["epoch"] = []
+        self.infos["output"]["train_loss"] = []
+        self.infos["output"]["eval_loss"] = []
+        self.infos["output"]["train_time_per_epoch"] = []
+        self.infos["output"]["eval_time_per_epoch"] = []
+
+    def add_epoch(self, epoch, train_loss, eval_loss, train_time, eval_time):
+        self.infos["output"]["epoch"].append(epoch)
+        self.infos["output"]["train_loss"].append(train_loss)
+        self.infos["output"]["eval_loss"].append(eval_loss)
+        self.infos["output"]["train_time_per_epoch"].append(train_time)
+        self.infos["output"]["eval_time_per_epoch"].append(eval_time)
+
+    def add_info(self, info, val):
+        self.infos["output"][info] = val
+
+    def get_info(self, info):
+        return self.infos[info]
+
+    def print(self):
+        print(self.infos)
+
+    def plot_loss(self, checkpoint):
+        plt.plot(self.infos["output"]["epoch"], self.infos["output"]["train_loss"], label="training loss")
+        plt.plot(self.infos["output"]["epoch"], self.infos["output"]["eval_loss"], label="evaluation loss")
+        plt.legend()
+        plt.savefig(checkpoint + "/loss.pdf")    
+
+    def save_infos(self, checkpoint):
+        with open(checkpoint + "/output.yaml", "w") as yaml_file:
+            yaml.dump(self.infos, yaml_file, default_flow_style=False)
+
+
