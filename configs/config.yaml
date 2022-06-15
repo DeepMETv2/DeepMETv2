@@ -1,0 +1,50 @@
+# This config contains the essential (previously) hard-coded values, that can be changed
+data_info:
+    load: "rootfiles" # options: "rootfiles", "ptfiles"
+    # dataset: /local/scratch/ssd/nshadskiy/DeepMET_data/znunu_60k_fix_dxyz/
+    # dataset: "/ceph/nshadskiy/DeepMETv2/samples/znunu/Z1JetsToNuNu_M-50_PtZ-*_MC_2018_NanoAODv9_*.root"
+    dataset: "/ceph/nshadskiy/DeepMETv2/samples/znunu/Z1JetsToNuNu_M-50_PtZ-150To250_MC_2018_NanoAODv9_1-2.root"
+    batch_size: 20
+    validation_split: 0.2
+    seed: 42
+    output_dir: "ckpts/test" 
+
+# in train.py
+train_info:
+    max_epoch: 30
+    # optimizer: AdamW
+    learning_rate: 0.001
+    # scheduler: ReduceLROnPlateau https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.ReduceLROnPlateau.html
+    factor: 0.5
+    patience: 10
+    threshold: 0.05 
+    
+# net.py
+net_info:
+    continuous_dim: 7
+    categorical_dim: 3
+    output_dim: 1
+    hidden_dim: 32
+    conv_depth: 2
+    activation_func: "relu"
+    loss:
+        puppi_match: True
+        bce_factor: 5000
+    graph: 
+        # either static or dynamic should be true, never both
+        static: True
+        dynamic: False
+        type: "radius_graph" # options: "knn_graph", "radius_graph"
+        layer: "EdgeConv" # options: "GCNConv", "EdgeConv"
+        loop: True
+        # for radius_graph
+        deltaR: 0.4
+        max_num_neighbors: 500
+        # for knn_graph
+        k: 10
+
+# variables and functions that are not changed often -> therefore you have to change them manually both: Here and in the python file
+# in train.py
+
+type_of_net: 
+    inputs: ["pX", "pY", "pT", "eta", "d0", "dz", "mass", "puppiWeight", "pdgId", "charge", "fromPV"]

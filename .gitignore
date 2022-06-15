@@ -1,2 +1,9 @@
+# folders
+ckpts/
+
+# python cache
+*.pyc
+
+# pytorch data files
 *.npz
 *.pt

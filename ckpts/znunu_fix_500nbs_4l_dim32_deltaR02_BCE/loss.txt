@@ -1,2 +1,0 @@
-# epoch, train loss, evaluation loss
-1.0,2463.1398354666576,2116.93079031808
