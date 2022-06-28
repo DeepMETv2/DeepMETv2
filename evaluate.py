@@ -12,6 +12,7 @@ import json
 import torch
 
 import utils
+import add_eval_plots
 import model.net as net
 import model.data_loader as data_loader
 from model.nano_loader import METDataset
@@ -93,7 +94,7 @@ def evaluate(model, device, loss_fn, dataloader, metrics, net_info, model_dir, o
                 
                 data = data.to(device)
 
-                if net_info["graph"]["static"]:
+                if net_info["graph"]["calculation"] == "static":
                     if net_info["graph"]["type"] == "radius_graph":
                         # calculate phi from momenta pY and pX
                         phi = torch.atan2(data.x[:, 1], data.x[:, 0])
@@ -122,7 +123,7 @@ def evaluate(model, device, loss_fn, dataloader, metrics, net_info, model_dir, o
                     else:
                         print("Wrong graph type!")
 
-                elif net_info["graph"]["dynamic"]:
+                elif net_info["graph"]["calculation"] == "dynamic":
                     edge_index = None
                 else:
                     print("Graph not defined.")
@@ -226,7 +227,7 @@ def evaluate(model, device, loss_fn, dataloader, metrics, net_info, model_dir, o
             }
 
         plt.figure(1)
-        plt.axis([0, 400, 0, 35])
+        plt.axis([0, 400, 0, 45])
         plt.xlabel(r'$q_{T}$ [GeV]')
         plt.ylabel(r'$\sigma (u_{\perp})$ [GeV]')
         plt.legend()
@@ -235,7 +236,7 @@ def evaluate(model, device, loss_fn, dataloader, metrics, net_info, model_dir, o
         plt.close()
 
         plt.figure(2)
-        plt.axis([0, 400, 0, 35])
+        plt.axis([0, 400, 0, 45])
         plt.xlabel(r'$q_{T}$ [GeV]')
         plt.ylabel(r'Scaled $\sigma (u_{\perp})$ [GeV]')
         plt.legend()
@@ -272,7 +273,12 @@ def evaluate(model, device, loss_fn, dataloader, metrics, net_info, model_dir, o
         plt.close()
 
         if addPlots:
-            utils.plot_features(pd.DataFrame.from_dict(features), model_dir, out)
+            add_eval_plots.plot_features(pd.DataFrame.from_dict(features), model_dir, out, eta_range=(0,5))
+            add_eval_plots.plot_features(pd.DataFrame.from_dict(features), model_dir, out, eta_range=(0,1.3))
+            add_eval_plots.plot_features(pd.DataFrame.from_dict(features), model_dir, out, eta_range=(1.3,2))
+            add_eval_plots.plot_features(pd.DataFrame.from_dict(features), model_dir, out, eta_range=(2,2.5))
+            add_eval_plots.plot_features(pd.DataFrame.from_dict(features), model_dir, out, eta_range=(2.5,3))
+            add_eval_plots.plot_features(pd.DataFrame.from_dict(features), model_dir, out, eta_range=(3,5))
 
         metrics_mean = {
             "loss": np.mean(loss_avg_arr),
@@ -290,7 +296,7 @@ if __name__ == "__main__":
     # Load the parameters
     args = parser.parse_args()
 
-    info_handler = utils.info_handler(args.config)
+    info_handler = utils.info_handler(args.config, args.restore_file)
     data_info = info_handler.get_info("data_info")
     train_info = info_handler.get_info("train_info")
     net_info = info_handler.get_info("net_info")
@@ -315,10 +321,11 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Evaluation performed on:", device)
     # restriction on gpu memory usage
-    torch.cuda.set_per_process_memory_fraction(0.5)
+    torch.cuda.set_per_process_memory_fraction(train_info["gpu_memory_usage"])
 
-    print("Using", net_info["graph"]["layer"], "layer.")
     model = net.Net(net_info).to(device)
+    utils.print_model_summary(model)
+
     optimizer = torch.optim.AdamW(model.parameters(), lr=train_info["learning_rate"])
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer,

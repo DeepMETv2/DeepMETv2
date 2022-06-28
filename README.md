@@ -4,18 +4,16 @@ Attempting to regress MET from PF candidate using a graph neural network.
 
 Code developed based on examples at: https://github.com/cs230-stanford/cs230-code-examples/tree/master/pytorch.
 
-## Prerequisites 
+## Prerequisites (installing pytorch)
 
 <pre>
-conda install cudatoolkit=10.2
-conda install -c pytorch pytorch=1.6.0
+conda install pytorch==1.10.1 torchvision==0.11.2 torchaudio==0.10.1 cudatoolkit=10.2 -c pytorch
 export CUDA="cu102"
-pip install torch-scatter -f https://pytorch-geometric.com/whl/torch-1.6.0+${CUDA}.html
-pip install torch-sparse -f https://pytorch-geometric.com/whl/torch-1.6.0+${CUDA}.html
-pip install torch-cluster -f https://pytorch-geometric.com/whl/torch-1.6.0+${CUDA}.html
-pip install torch-spline-conv -f https://pytorch-geometric.com/whl/torch-1.6.0+${CUDA}.html
+pip install torch-scatter -f https://data.pyg.org/whl/torch-1.10.0+${CUDA}.html
+pip install torch-sparse -f https://data.pyg.org/whl/torch-1.10.0+${CUDA}.html
+pip install torch-cluster -f https://data.pyg.org/whl/torch-1.10.0+${CUDA}.html
+pip install torch-spline-conv -f https://data.pyg.org/whl/torch-1.10.0+${CUDA}.html
 pip install torch-geometric
-pip install coffea
 pip install mplhep
 </pre>
 
@@ -23,13 +21,19 @@ pip install mplhep
 
 Data have been obtained from privately produced NanoAOD, generated with the following package:
 
-https://github.com/mcremone/NanoMET
+https://github.com/DeepMETv2/PFNano
 
 All PF candidates have been included from the packedPFCandidates collection in MiniAOD:
 
-https://github.com/mcremone/NanoMET/blob/master/python/addPFCands_cff.py#L16-L17
+https://github.com/DeepMETv2/PFNano/blob/master/python/addPFCands_cff.py#L16-L17
 
-The name of the additional branch in NanoAOD is `JetPFCands`. A dataset corresponding to Z->nunu events has been generated, together with a second dataset composed by a mixture of Drell-Yan and dilepton TT events. The datasets were converted into .npz files using the `data/generate_npz.py` or `data_dytt/generate_npz.py` modules and the output is stored in the `data` or `data_dytt` folder. Each .npz file correspond to one event and contains two arrays:
+The name of the additional branch in NanoAOD is `JetPFCands`. A dataset corresponding to Z->nunu events has been generated, together with a second dataset composed by a mixture of Drell-Yan and dilepton TT events. 
+
+There are now two way how to load the datasets. 
+
+a) Using the [nano_loader](https://github.com/DeepMETv2/deepmetv2/blob/dev_config_merge/model/nano_loader.py) to load the produced nanoAOD files directly.
+
+b) Convert the datasets into .npz files using the `data_znunu/generate_npz.py` or `data_dytt/generate_npz.py` modules and the output is stored in the `data_znunu` or `data_dytt` folder. Each .npz file correspond to one event and contains two arrays:
 
 <pre>
 >>> import numpy as np
@@ -58,9 +62,9 @@ array([ 17.75378418, -10.78764725,   2.42605209, -34.80409956,
 
 </pre>    
 
-The first array, `arr_0`, contains the input features for each PF candidate in the event, that correspond to the sub-arrays. The components of each sub-array correspond to the PF candidate pT, eta, phi, mass, d0, dz, pdgId, charge, pvAssocQuality, and puppiWeight (https://github.com/mcremone/graph-met/blob/clean/data/generate_npz.py#L27-L38). 
+The first array, `arr_0`, contains the input features for each PF candidate in the event, that correspond to the sub-arrays. The components of each sub-array correspond to the PF candidate pT, eta, phi, mass, d0, dz, pdgId, charge, fromPV, and puppiWeight. 
 
-The second array, `arr_1`, contains the target values for the event. The values correspond to the px and py of genMET, PF, PUPPI, and DeepMET (https://github.com/mcremone/graph-met/blob/clean/data_dytt/generate_npz.py#L41-L52), or recoil calculated with those (https://github.com/mcremone/graph-met/blob/clean/data/generate_npz.py#L10-L21).
+The second array, `arr_1`, contains the target values for the event. The values correspond to the px and py of genMET, PF, PUPPI, and DeepMET, or recoil calculated with those.
 
 The .npz inputs need to be converted into .pt files to be used for training. From terminal, launch python, then do:
 
@@ -96,7 +100,9 @@ To launch the training, the `train.py` can be used:
 
 
 <pre>
-python train.py --data data_dytt --ckpts ckpts_dytt --restore_file past
+python train.py --config config --restore_file past
 </pre>
 
-The `--data` options indicates the folder where the input data to be used for the training are stored. The `--ckpts` options indicates the folder where the checkpoints produced in the training will be stored, together with evaluation metrics. If the `--data` and `--ckpts` options will not be prvided, defaults are going to be applied. The `--restore_file` options is completely optional and can be used to restart the training from a saved checkpoint (either `last` or `best`).
+The `--config` option indicates the name of the config file that should be used for the training. The config files are in yaml format and are stored in `configs/`. 
+
+The `--restore_file` option is completely optional and can be used to restart the training from a saved checkpoint (either `last` or `best`).

@@ -13,52 +13,20 @@ import concurrent.futures
 class METDataset:
     """PyTorch geometric dataset loader for MET"""
 
-    def __init__(self, files, validation_split, batch_size, random_seed):
+    def __init__(self, files, features, labels, validation_split, batch_size, random_seed):
 
         tree_name = "Events"
-        variables = [
-            "PFCands_pt",
-            "PFCands_eta",
-            "PFCands_phi",
-            "PFCands_mass",
-            "PFCands_d0",
-            "PFCands_dz",
-            "PFCands_puppiWeight",
-            "PFCands_pdgId",
-            "PFCands_charge",
-            "PFCands_fromPV",
-        ]
-        METs = [
-            "GenMET_pt",
-            "GenMET_phi",
-            "MET_pt",
-            "MET_phi",
-            "PuppiMET_pt",
-            "PuppiMET_phi",
-            "DeepMETResponseTune_pt",
-            "DeepMETResponseTune_phi",
-            "DeepMETResolutionTune_pt",
-            "DeepMETResolutionTune_phi",
-        ]
 
         start_time = time.time()
         print("-" * 50)
         print("Start loading dataset:", files)
         print("-" * 50)
         executor = concurrent.futures.ThreadPoolExecutor()
-        # f = uproot.open(
-        #     file, file_handler=uproot.MultithreadedFileSource, num_workers=5
-        # )
-        # tree = f[tree_name]
-        tree = uproot.concatenate(files+":"+tree_name, variables+METs,decompression_executor=executor,interpretation_executor=executor)
-        # tree = uproot.lazy(files+":"+tree_name,decompression_executor=executor,interpretation_executor=executor)
+        tree = uproot.concatenate(files+":"+tree_name, features+labels,decompression_executor=executor,interpretation_executor=executor)
 
-
-        #x_df = tree.arrays(variables)
         tree["PFCands_px"] = tree["PFCands_pt"] * np.cos(tree["PFCands_phi"])
         tree["PFCands_py"] = tree["PFCands_pt"] * np.sin(tree["PFCands_phi"])
 
-        #y_df = tree.arrays(METs)
         tree["GenMET_px"] = tree["GenMET_pt"] * np.cos(tree["GenMET_phi"])
         tree["GenMET_py"] = tree["GenMET_pt"] * np.sin(tree["GenMET_phi"])
         tree["MET_px"] = tree["MET_pt"] * np.cos(tree["MET_phi"])
@@ -97,6 +65,7 @@ class METDataset:
                 charge = ak.to_numpy(tree["PFCands_charge"][i]).astype(np.float32)
                 fromPV = ak.to_numpy(tree["PFCands_fromPV"][i]).astype(np.float32)
 
+                # puppi weights should be the last continuous feature, so it can be remove/added easier later in the training 
                 x = np.stack(
                     (pX, pY, pT, eta, d0, dz, mass, puppiWeight, pdgId, charge, fromPV),
                     axis=-1,
@@ -157,6 +126,9 @@ class METDataset:
             [dataset_size - split, split],
             generator=torch.Generator().manual_seed(random_seed),
         )
+        print("Number of training events: {}".format(len(train_set)))
+        print("Number of validation events: {}".format(len(val_set)))
+        print("-" * 50)
         self.dataloaders = {
             "train": DataLoader(train_set, batch_size=batch_size, shuffle=False),
             "test": DataLoader(val_set, batch_size=batch_size, shuffle=False),

@@ -89,18 +89,17 @@ class METDataset(Dataset):
 def fetch_dataloader(data_dir, batch_size, validation_split):
     transform = T.Cartesian(cat=False)
     dataset = METDataset(data_dir)
-    print(dataset)
     dataset_size = len(dataset)
     indices = list(range(dataset_size))
     split = int(np.floor(validation_split * dataset_size))
-    print(split)
     random_seed = 42
     train_subset, val_subset = torch.utils.data.random_split(
         dataset,
         [dataset_size - split, split],
         generator=torch.Generator().manual_seed(random_seed),
     )
-    print(len(train_subset), len(val_subset))
+    print("Number of training events: {}".format(len(train_subset)))
+    print("Number of validation events: {}".format(len(val_subset)))
     dataloaders = {
         "train": DataLoader(train_subset, batch_size=batch_size, shuffle=False),
         "test": DataLoader(val_subset, batch_size=batch_size, shuffle=False),

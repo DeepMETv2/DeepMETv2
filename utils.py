@@ -6,10 +6,9 @@ import os
 
 # import shutil
 
-import numpy as np
 import yaml
 import matplotlib.pyplot as plt
-from matplotlib.colors import LogNorm
+
 import mplhep as hep
 
 plt.style.use(hep.style.CMS)
@@ -128,15 +127,21 @@ class info_handler:
 
     """
 
-    def __init__(self, config):
+    def __init__(self, config, restore=None):
         with open("configs/" + config + ".yaml", "r") as file:
             self.infos = yaml.load(file, yaml.FullLoader)
-        self.infos["output"] = {}
-        self.infos["output"]["epoch"] = []
-        self.infos["output"]["train_loss"] = []
-        self.infos["output"]["eval_loss"] = []
-        self.infos["output"]["train_time_per_epoch"] = []
-        self.infos["output"]["eval_time_per_epoch"] = []
+        if restore is None: 
+            self.infos["output"] = {}
+            self.infos["output"]["epoch"] = []
+            self.infos["output"]["train_loss"] = []
+            self.infos["output"]["eval_loss"] = []
+            self.infos["output"]["train_time_per_epoch"] = []
+            self.infos["output"]["eval_time_per_epoch"] = []
+        else: 
+            workdir = self.infos["data_info"]["output_dir"]
+            with open(workdir+"/output.yaml", "r") as file:
+                self.infos = yaml.load(file, yaml.FullLoader)
+
 
     def add_epoch(self, epoch, train_loss, eval_loss, train_time, eval_time):
         self.infos["output"]["epoch"].append(epoch)
@@ -173,160 +178,13 @@ class info_handler:
         with open(checkpoint + "/output.yaml", "w") as yaml_file:
             yaml.dump(self.infos, yaml_file, default_flow_style=False)
 
-
-def medians_from_scatter(x, y, x_range=None, n_bins=30):
-    if x_range is None:
-        left_lim = np.amin(x)
-        right_lim = np.amax(x)
-    else:
-        left_lim = x_range[0]
-        right_lim = x_range[1]
-    right_lim += (right_lim - left_lim)/100000.
-    bin_edges = np.logspace(left_lim, right_lim, n_bins+1)
-    bin_centers = (bin_edges[1:] + bin_edges[:-1])/2.
-    idxs = [np.logical_and(x >= bin_edges[i], x < bin_edges[i+1]) for i in np.arange(n_bins)]
-    median = np.array([np.nanquantile(y[idx], 0.5) for idx in idxs])
-    lower = np.array([np.nanquantile(y[idx], 0.16) for idx in idxs])
-    upper = np.array([np.nanquantile(y[idx], 0.84) for idx in idxs])
-    
-    return bin_centers, median, lower, upper
-
-
-def plot_features(features, model_dir, out):
-    plt.hist2d(features[features.pdgId==22]["graphMET_weight"], features[features.pdgId==22]["puppi_weight"], bins=[40,40],range=[[0,1],[0,1]], norm=LogNorm())
-    plt.colorbar()
-    plt.ylabel("puppi weight")
-    plt.xlabel("graphMET weight")
-    plt.title("photons")
-    plt.savefig(model_dir + "/" + out + "photons-puppi_vs_graphMET_weight.png")
-    plt.close()
-
-    plt.hist2d(features[features.pdgId==22]["graphMET_weight"], features[features.pdgId==22]["pT"], bins=[40,40],range=[[0.01,100],[0,1]], norm=LogNorm())
-    plt.colorbar()
-    plt.ylabel("pT")
-    plt.yscale("log")
-    plt.xlabel("graphMET weight")
-    plt.title("photons")
-    plt.savefig(model_dir + "/" + out + "photons-pT_vs_graphMET_weight.png")
-    plt.close()
-
-    plt.hist2d(features[features.pdgId==130]["graphMET_weight"], features[features.pdgId==130]["puppi_weight"], bins=[40,40],range=[[0,1],[0,1]], norm=LogNorm())
-    plt.colorbar()
-    plt.ylabel("puppi weight")
-    plt.xlabel("graphMET weight")
-    plt.title("neutrals")
-    plt.savefig(model_dir + "/" + out + "neutrals-puppi_vs_graphMET_weight.png")
-    plt.close()
-
-    plt.hist2d(features[features.pdgId==130]["graphMET_weight"], features[features.pdgId==130]["pT"], bins=[40,40],range=[[0.01,100],[0,1]], norm=LogNorm())
-    plt.colorbar()
-    plt.ylabel("pT")
-    plt.yscale("log")
-    plt.xlabel("graphMET weight")
-    plt.title("neutrals")
-    plt.savefig(model_dir + "/" + out + "neutrals-pT_vs_graphMET_weight.png")
-    plt.close()
-
-    analytic_22, median_22, low_22, up_22 = medians_from_scatter(features[features.pdgId==22]["pT"], features[features.pdgId==22]["graphMET_weight"], x_range=(0.1,10), n_bins=20)
-    plt.plot(analytic_22, median_22, alpha=0.7, color="blue", label="photons")
-    plt.fill_between(analytic_22, low_22, up_22, facecolor="blue", alpha=0.2)
-    analytic_130, median_130, low_130, up_130 = medians_from_scatter(features[features.pdgId==130]["pT"], features[features.pdgId==130]["graphMET_weight"], x_range=(0.1,10), n_bins=20)
-    plt.plot(analytic_130, median_130, alpha=0.7, color="green", label="neutrals")
-    plt.fill_between(analytic_130, low_130, up_130, facecolor="green", alpha=0.2)
-    plt.xlabel("PF pT")
-    plt.xlim([0.1,20])
-    plt.xscale("log")
-    plt.ylabel("graphMET weight")
-    plt.ylim([0,1])
-    plt.legend()
-    plt.savefig(model_dir + "/" + out + "particles-pT_vs_graphMET_weight.png")
-    plt.close()
-
-    # analytic_PV0, median_PV0, low_PV0, up_PV0 = medians_from_scatter(features[features.fromPV==0]["pT"], features[features.fromPV==0]["graphMET_weight"], x_range=(0.1,10), n_bins=20)
-    # plt.plot(analytic_PV0, median_PV0, alpha=0.7, color="blue", label="fromPV=0")
-    # plt.fill_between(analytic_PV0, low_PV0, up_PV0, facecolor="blue", alpha=0.2)
-    # analytic_PV1, median_PV1, low_PV1, up_PV1 = medians_from_scatter(features[features.fromPV==1]["pT"], features[features.fromPV==1]["graphMET_weight"], x_range=(0.1,10), n_bins=20)
-    # plt.plot(analytic_PV1, median_PV1, alpha=0.7, color="green", label="fromPV=1")
-    # plt.fill_between(analytic_PV1, low_PV1, up_PV1, facecolor="green", alpha=0.2)
-    # analytic_PV2, median_PV2, low_PV2, up_PV2 = medians_from_scatter(features[features.fromPV==2]["pT"], features[features.fromPV==2]["graphMET_weight"], x_range=(0.1,10), n_bins=20)
-    # plt.plot(analytic_PV2, median_PV2, alpha=0.7, color="red", label="fromPV=2")
-    # plt.fill_between(analytic_PV2, low_PV2, up_PV2, facecolor="red", alpha=0.2)
-    # analytic_PV3, median_PV3, low_PV3, up_PV3 = medians_from_scatter(features[features.fromPV==3]["pT"], features[features.fromPV==3]["graphMET_weight"], x_range=(0.1,10), n_bins=20)
-    # plt.plot(analytic_PV3, median_PV3, alpha=0.7, color="black", label="fromPV=3")
-    # plt.fill_between(analytic_PV3, low_PV3, up_PV3, facecolor="black", alpha=0.2)
-    # plt.xlabel("PF pT")
-    # plt.xlim([0.01,100])
-    # plt.xscale("log")
-    # plt.ylabel("graphMET weight")
-    # plt.ylim([0,1])
-    # plt.legend()
-    # plt.savefig(model_dir + "/" + out + "fromPV-pT_vs_graphMET_weight.png")
-    # plt.close()
-
-
-    # plt.plot(features[features.pdgId==22]["graphMET_weight"], features[features.pdgId==22]["puppiWeight"], ".b", label="photons")
-    # plt.plot(features[features.pdgId==130]["graphMET_weight"], features[features.pdgId==130]["puppiWeight"], ".g", label="neutrals")
-    # plt.ylabel("puppi weight")
-    # plt.ylim([0,1])
-    # plt.xlabel("graphMET weight")
-    # plt.xlim([0,1])
-    # plt.legend()
-    # plt.savefig(model_dir + "/" + out + "particles-puppi_vs_graphMET_weight.png")
-    # plt.close()
-
-    # plt.plot(features[features.pdgId==22]["graphMET_weight"], features[features.pdgId==22]["pT"], ".b", label="photons")
-    # plt.plot(features[features.pdgId==130]["graphMET_weight"], features[features.pdgId==130]["pT"], ".g", label="neutrals")
-    # plt.ylabel("pT")
-    # plt.ylim([0.01,100])
-    # plt.yscale("log")
-    # plt.xlabel("graphMET weight")
-    # plt.xlim([0,1])
-    # plt.legend()
-    # plt.savefig(model_dir + "/" + out + "particles-pT_vs_graphMET_weight.png")
-    # plt.close()
-
-    # plt.plot(features[features.fromPV==0]["graphMET_weight"], features[features.fromPV==0]["pT"], ".b", label="fromPV=0")
-    # plt.plot(features[features.fromPV==1]["graphMET_weight"], features[features.fromPV==1]["pT"], ".g", label="fromPV=1")
-    # plt.plot(features[features.fromPV==2]["graphMET_weight"], features[features.fromPV==2]["pT"], ".r", label="fromPV=2")
-    # plt.plot(features[features.fromPV==3]["graphMET_weight"], features[features.fromPV==3]["pT"], ".k", label="fromPV=3")
-    # plt.ylabel("pT")
-    # plt.ylim([0.01,100])
-    # plt.yscale("log")
-    # plt.xlabel("graphMET weight")
-    # plt.xlim([0,1])
-    # plt.legend()
-    # plt.savefig(model_dir + "/" + out + "fromPV-pT_vs_graphMET_weight.png")
-    # plt.close()
-
-    # counts, x_edges, y_edges = np.histogram2d(features[features.fromPV==0]["graphMET_weight"], features[features.fromPV==0]["pT"], bins=40)
-    # #plt.hist2d(features[features.fromPV==0]["graphMET_weight"], features[features.fromPV==0]["pT"], bins=[40,40],range=[[0.01,100],[0,1]], norm=LogNorm())
-    # fig, ax = plt.subplots()
-    # ax.pcolormesh(x_edges, y_edges, counts.T)
-    # ax.set_xscale("log")
-    # #fig.colorbar()
-    # #fig.ylabel("pT")
-    # #plt.yscale("log")
-    # #fig.xlabel("graphMET weight")
-    # #fig.title("fromPV = 0")
-    # fig.savefig(model_dir + "/" + out + "PV0-pT_vs_graphMET_weight.png")
-    # plt.close()
-
-    plt.hist(features[features.fromPV==0]["graphMET_weight"], bins=40, density=True, histtype="step", label="fromPV=0")
-    plt.hist(features[features.fromPV==1]["graphMET_weight"], bins=40, density=True, histtype="step", label="fromPV=1")
-    plt.hist(features[features.fromPV==2]["graphMET_weight"], bins=40, density=True, histtype="step", label="fromPV=2")
-    plt.hist(features[features.fromPV==3]["graphMET_weight"], bins=40, density=True, histtype="step", label="fromPV=3")
-    plt.ylabel("normalized")
-    plt.yscale("log")
-    plt.xlabel("graphMET weight")
-    plt.legend()
-    plt.savefig(model_dir + "/" + out + "fromPV-graphMET_weight.png")
-    plt.close()
-
-    plt.hist(features[(features.puppi_weight==0) & (features.charge!=0)]["graphMET_weight"], bins=40, density=True, histtype="step", label="puppi=0")
-    plt.hist(features[(features.puppi_weight==1) & (features.charge!=0)]["graphMET_weight"], bins=40, density=True, histtype="step", label="puppi=1")
-    plt.ylabel("normalized")
-    plt.yscale("log")
-    plt.xlabel("graphMET weight")
-    plt.legend()
-    plt.savefig(model_dir + "/" + out + "puppi-graphMET_weight.png")
-    plt.close()
+def print_model_summary(model):
+    print("-" * 50)
+    print("-" * 18 + "model summary" + "-" * 19)
+    print(model)
+    print("-" * 50)
+    param_list = [p.numel() for p in model.parameters() if p.requires_grad]
+    total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print("List of trainable parameters:", param_list)
+    print("Total number of trainable parameters:", total_params)
+    print("-" * 50)

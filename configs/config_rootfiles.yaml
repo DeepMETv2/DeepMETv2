@@ -1,0 +1,82 @@
+# This config contains the essential (previously) hard-coded values, that can be changed
+
+# information about the training data
+data_info:
+    load: "rootfiles" # options: "rootfiles", "ptfiles"
+    dataset: "/ceph/nshadskiy/DeepMETv2/samples/znunu/Z1JetsToNuNu_M-50_PtZ-150To250_MC_2018_NanoAODv9_1-2.root"
+    # dataset: "/ceph/nshadskiy/DeepMETv2/samples/znunu/Z1JetsToNuNu_M-50_PtZ-*_MC_2018_NanoAODv9_*.root"
+    # lists of features and labels; if adjusted also adjust nano_loader.py
+    load_features:
+        - "PFCands_pt"
+        - "PFCands_eta"
+        - "PFCands_phi"
+        - "PFCands_mass"
+        - "PFCands_d0"
+        - "PFCands_dz"
+        - "PFCands_puppiWeight"
+        - "PFCands_pdgId"
+        - "PFCands_charge"
+        - "PFCands_fromPV"
+    load_labels: 
+        - "GenMET_pt"
+        - "GenMET_phi"
+        - "MET_pt"
+        - "MET_phi"
+        - "PuppiMET_pt"
+        - "PuppiMET_phi"
+        - "DeepMETResponseTune_pt"
+        - "DeepMETResponseTune_phi"
+        - "DeepMETResolutionTune_pt"
+        - "DeepMETResolutionTune_phi"
+    batch_size: 20
+    validation_split: 0.2
+    # seed for data shuffling
+    seed: 42
+    output_dir: "ckpts/test2" 
+
+# information for training procedure
+# TODO: add other optimizers and schedulers 
+train_info:
+    max_epoch: 40
+    # options for AdamW (optimizer)
+    learning_rate: 0.001
+    # options for ReduceLROnPlateau (scheduler)
+    factor: 0.5
+    patience: 5
+    threshold: 0.05 
+    # restrict pytorch gpu memory usage in percent
+    gpu_memory_usage: 0.5
+    
+# information about the network architecture
+net_info:
+    # dimension of continuous input features
+    continuous_dim: 7
+    # dimension of categorical input features
+    categorical_dim: 3
+    # dimension for output -> one weight per PF candidate
+    output_dim: 1
+    # dimension of graph layer inputs
+    hidden_dim: 32
+    # number of graph layer 
+    conv_depth: 2
+    # activation functions
+    activation_func: "relu"
+    output_func: "sigmoid"
+    # specifications for the loss function
+    loss:
+        puppi_match: False
+        bce_factor: 5000
+    # specification of the graph layer and graph calculation
+    graph: 
+        layer: "EdgeConv" # options: "GCNConv", "EdgeConv"
+        mesg_dim: 40
+        calculation: "static" # options: "static", "dynamic" (only with EdgeConv)
+        type: "radius_graph" # options: "knn_graph", "radius_graph"
+        # parameters for graph calculation
+        loop: True
+        # parameters for radius_graph
+        deltaR: 0.4
+        max_num_neighbors: 500
+        # parameters for knn_graph
+        k: 10
+    

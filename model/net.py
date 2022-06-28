@@ -14,7 +14,7 @@ class Net(nn.Module):
     def __init__(self, net_info):
         super(Net, self).__init__()
 
-        if net_info["graph"]["static"]:
+        if net_info["graph"]["calculation"] == "static":
             if net_info["graph"]["layer"] == "GCNConv":
                 self.graphnet = GraphMET_GCNConv(
                     net_info["continuous_dim"],
@@ -26,16 +26,18 @@ class Net(nn.Module):
                 )
             elif net_info["graph"]["layer"] == "EdgeConv":
                 self.graphnet = GraphMET_EdgeConv(
+                    net_info["graph"],
                     net_info["continuous_dim"],
                     net_info["categorical_dim"],
                     output_dim=net_info["output_dim"],
                     hidden_dim=net_info["hidden_dim"],
                     conv_depth=net_info["conv_depth"],
                     activation_function=net_info["activation_func"],
+                    output_activation=net_info["output_func"],
                 )
             else:
                 print("Graph layer does not exist.")
-        elif net_info["graph"]["dynamic"]:
+        elif net_info["graph"]["calculation"] == "dynamic":
             self.graphnet = GraphMET_dynamicEdgeConv(
                 net_info["continuous_dim"],
                 net_info["categorical_dim"],
@@ -50,7 +52,7 @@ class Net(nn.Module):
 
     def forward(self, x, edge_index, batch):
         weights = self.graphnet(x, edge_index, batch)
-        return torch.sigmoid(weights)
+        return weights #torch.sigmoid(weights)
 
 
 def loss_fn(pred_weights, variables, truth, batch, loss_info):

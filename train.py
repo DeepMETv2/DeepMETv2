@@ -3,10 +3,8 @@ import os.path as osp
 import os
 import numpy as np
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
+from torchsummary import summary
 from torch_cluster import radius_graph, knn_graph
-import torch_geometric.transforms as T
 from tqdm import tqdm
 import argparse
 import utils
@@ -45,7 +43,7 @@ def train(model, device, optimizer, scheduler, loss_fn, dataloader, epoch, net_i
             optimizer.zero_grad()
             data = data.to(device)
 
-            if net_info["graph"]["static"]:
+            if net_info["graph"]["calculation"] == "static":
                 if net_info["graph"]["type"] == "radius_graph":
                     # calculate phi from momenta pY and pX
                     phi = torch.atan2(data.x[:, 1], data.x[:, 0])
@@ -74,7 +72,7 @@ def train(model, device, optimizer, scheduler, loss_fn, dataloader, epoch, net_i
                 else:
                     print("Wrong graph type!")
 
-            elif net_info["graph"]["dynamic"]:
+            elif net_info["graph"]["calculation"] == "dynamic":
                 edge_index = None
             else:
                 print("Graph not defined.")
@@ -101,7 +99,7 @@ def train(model, device, optimizer, scheduler, loss_fn, dataloader, epoch, net_i
 if __name__ == "__main__":
     args = parser.parse_args()
 
-    info_handler = utils.info_handler(args.config)
+    info_handler = utils.info_handler(args.config, args.restore_file)
     data_info = info_handler.get_info("data_info")
     train_info = info_handler.get_info("train_info")
     net_info = info_handler.get_info("net_info")
@@ -109,6 +107,8 @@ if __name__ == "__main__":
     if data_info["load"] == "rootfiles":
         dataset = METDataset(
             data_info["dataset"],
+            data_info["load_features"],
+            data_info["load_labels"],
             data_info["validation_split"],
             data_info["batch_size"],
             data_info["seed"],
@@ -129,10 +129,11 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Training performed on:", device)
     # restriction on gpu memory usage
-    torch.cuda.set_per_process_memory_fraction(0.5)
+    torch.cuda.set_per_process_memory_fraction(train_info["gpu_memory_usage"])
 
-    print("Using", net_info["graph"]["layer"], "layer.")
     model = net.Net(net_info).to(device)
+    utils.print_model_summary(model)
+
     optimizer = torch.optim.AdamW(model.parameters(), lr=train_info["learning_rate"])
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer,
@@ -232,3 +233,5 @@ if __name__ == "__main__":
         # generate loss plot if more then one training epoch
         if epoch != 1:
             info_handler.plot_loss(str(model_dir))
+        
+        print("-" * 50)

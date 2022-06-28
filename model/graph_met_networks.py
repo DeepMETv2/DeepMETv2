@@ -10,6 +10,7 @@ from torch_cluster import knn_graph
 func_dict = {
     "elu": nn.ELU(),
     "relu": nn.ReLU(),
+    "sigmoid": nn.Sigmoid(),
 }
 
 
@@ -99,16 +100,18 @@ class GraphMET_GCNConv(nn.Module):
 class GraphMET_EdgeConv(nn.Module):
     def __init__(
         self,
-        continuous_dim,
+        graph_info,
+        cont_dim,
         cat_dim,
         output_dim=1,
         hidden_dim=32,
         conv_depth=2,
         activation_function="elu",
+        output_activation="sigmoid",
     ):
         super(GraphMET_EdgeConv, self).__init__()
 
-        self.n_cont = continuous_dim
+        self.n_cont = cont_dim
         self.n_cat = cat_dim
 
         self.embed_charge = nn.Embedding(3, hidden_dim // 4)
@@ -122,7 +125,7 @@ class GraphMET_EdgeConv(nn.Module):
         )
 
         self.mlp_continuous = nn.Sequential(
-            nn.Linear(continuous_dim, hidden_dim // 2),
+            nn.Linear(cont_dim, hidden_dim // 2),
             func_dict[activation_function],
             # nn.BatchNorm1d(hidden_dim // 2) # uncomment if it starts overtraining
         )
@@ -137,9 +140,10 @@ class GraphMET_EdgeConv(nn.Module):
         self.convs = nn.ModuleList()
         for i in range(conv_depth):
             mesg = nn.Sequential(
-                nn.Linear(2 * hidden_dim, 40),
+                nn.Linear(2 * hidden_dim, graph_info["mesg_dim"]),
                 func_dict[activation_function],
-                nn.Linear(40, hidden_dim),
+                nn.Linear(graph_info["mesg_dim"], hidden_dim),
+                func_dict[activation_function],
             )
             self.convs.append(nn.ModuleList())
             self.convs[-1].append(EdgeConv(nn=mesg).jittable())
@@ -150,6 +154,8 @@ class GraphMET_EdgeConv(nn.Module):
             func_dict[activation_function],
             nn.Linear(hidden_dim // 2, output_dim),
         )
+        self.output_activation = func_dict[output_activation]
+
         self.pdgs = [1, 2, 11, 13, 22, 130, 211]
 
     def forward(self, x, edge_index, batch):
@@ -180,23 +186,24 @@ class GraphMET_EdgeConv(nn.Module):
         out = self.output(emb)
         out = out.squeeze(-1)
 
-        return out
+        return self.output_activation(out)
 
 
 class GraphMET_dynamicEdgeConv(nn.Module):
     def __init__(
         self,
-        continuous_dim,
-        cat_dim,
         graph_info,
+        cont_dim,
+        cat_dim,
         output_dim=1,
         hidden_dim=32,
         conv_depth=2,
         activation_function="elu",
+        output_activation="sigmoid",
     ):
         super(GraphMET_dynamicEdgeConv, self).__init__()
 
-        self.n_cont = continuous_dim
+        self.n_cont = cont_dim
         self.n_cat = cat_dim
         self.k = graph_info["k"]
         self.loop = graph_info["loop"]
@@ -212,7 +219,7 @@ class GraphMET_dynamicEdgeConv(nn.Module):
         )
 
         self.mlp_continuous = nn.Sequential(
-            nn.Linear(continuous_dim, hidden_dim // 2),
+            nn.Linear(cont_dim, hidden_dim // 2),
             func_dict[activation_function],
             # nn.BatchNorm1d(hidden_dim // 2) # uncomment if it starts overtraining
         )
@@ -224,7 +231,10 @@ class GraphMET_dynamicEdgeConv(nn.Module):
 
         self.convs = nn.ModuleList()
         for i in range(conv_depth):
-            mesg = nn.Sequential(nn.Linear(2 * hidden_dim, hidden_dim))
+            mesg = nn.Sequential(nn.Linear(2 * hidden_dim, graph_info["mesg_dim"]),
+                func_dict[activation_function],
+                nn.Linear(graph_info["mesg_dim"], hidden_dim),
+                func_dict[activation_function],)
             self.convs.append(nn.ModuleList())
             self.convs[-1].append(EdgeConv(nn=mesg).jittable())
             self.convs[-1].append(nn.BatchNorm1d(hidden_dim))
@@ -234,6 +244,7 @@ class GraphMET_dynamicEdgeConv(nn.Module):
             func_dict[activation_function],
             nn.Linear(hidden_dim // 2, output_dim),
         )
+        self.output_activation = func_dict[output_activation]
 
         self.pdgs = [1, 2, 11, 13, 22, 130, 211]
 
@@ -266,5 +277,6 @@ class GraphMET_dynamicEdgeConv(nn.Module):
             )
 
         out = self.output(emb)
+        out = out.squeeze(-1)
 
-        return out.squeeze(-1)
+        return self.output_activation(out)
